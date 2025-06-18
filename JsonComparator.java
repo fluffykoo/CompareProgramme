@@ -20,18 +20,18 @@ public class JsonComparator {
 
         List<Difference> differences = new ArrayList<>();
 
-        // Gestion des suppressions et modifications
-        for (String entityId : refMap.keySet()) {
-            if (!newMap.containsKey(entityId)) {
-                differences.add(new Difference(entityId, ChangeType.DELETION, "", "", null, null));
+        // Deletions & modifications
+        for (String objectId : refMap.keySet()) {
+            if (!newMap.containsKey(objectId)) {
+                differences.add(new Difference(objectId, ChangeType.DELETION, "", "", null, null));
             } else {
-                compareEntities(entityId, refMap.get(entityId), newMap.get(entityId), differences);
+                compareObjects(objectId, refMap.get(objectId), newMap.get(objectId), differences);
             }
         }
-        // Gestion des ajouts
-        for (String entityId : newMap.keySet()) {
-            if (!refMap.containsKey(entityId)) {
-                differences.add(new Difference(entityId, ChangeType.ADDITION, "", "", null, null));
+        // Additions
+        for (String objectId : newMap.keySet()) {
+            if (!refMap.containsKey(objectId)) {
+                differences.add(new Difference(objectId, ChangeType.ADDITION, "", "", null, null));
             }
         }
         return differences;
@@ -48,224 +48,124 @@ public class JsonComparator {
     }
 
     private String extractEntityId(JsonObject obj) {
-        String id = extractIdByKey(obj, config.getPrimaryKey());
+        String id = extractByKey(obj, config.getPrimaryKey());
         if (id == null && config.getFallbackKey() != null) {
-            id = extractIdByKey(obj, config.getFallbackKey());
+            id = extractByKey(obj, config.getFallbackKey());
         }
         return id;
     }
 
-    private String extractIdByKey(JsonObject obj, String key) {
-        if (!obj.has(key)) return null;
-        JsonElement element = obj.get(key);
-        if (element.isJsonPrimitive()) return element.getAsString();
-        if (element.isJsonObject()) {
-            JsonObject o = element.getAsJsonObject();
-            if (!o.keySet().isEmpty()) {
-                String firstKey = o.keySet().iterator().next();
-                JsonElement value = o.get(firstKey);
-                if (value.isJsonPrimitive()) return value.getAsString();
+    private String extractByKey(JsonObject obj, String key) {
+        if (key == null || !obj.has(key)) return null;
+        JsonElement el = obj.get(key);
+        if (el.isJsonPrimitive()) return el.getAsString();
+        if (el.isJsonObject()) {
+            JsonObject inner = el.getAsJsonObject();
+            if (!inner.keySet().isEmpty()) {
+                String k = inner.keySet().iterator().next();
+                JsonElement v = inner.get(k);
+                if (v.isJsonPrimitive()) return v.getAsString();
             }
         }
         return null;
     }
 
-    // Logique principale de comparaison - similaire à l'original comparerSections
-    private void compareEntities(String entityId, JsonObject ref, JsonObject nov, List<Difference> differences) {
-        Set<String> allKeys = new HashSet<>();
-        allKeys.addAll(ref.keySet());
-        allKeys.addAll(nov.keySet());
+    private void compareObjects(String objectId, JsonObject refObj, JsonObject newObj, List<Difference> diffs) {
+        Set<String> keys = new HashSet<>();
+        keys.addAll(refObj.keySet());
+        keys.addAll(newObj.keySet());
 
-        JsonObject subSectionKeys = config.getSubSectionKeys();
+        for (String section : keys) {
+            JsonElement r = refObj.get(section);
+            JsonElement n = newObj.get(section);
 
-        for (String key : allKeys) {
-            JsonElement refVal = ref.get(key);
-            JsonElement novVal = nov.get(key);
-
-            // Si la clé est une sous-section (tableau d'objets)
-            if (subSectionKeys != null && subSectionKeys.has(key)) {
-                String subKey = subSectionKeys.get(key).getAsString();
-                if (refVal != null && refVal.isJsonArray() && novVal != null && novVal.isJsonArray()) {
-                    compareJsonArraysByKey(entityId, key, subKey, refVal.getAsJsonArray(), novVal.getAsJsonArray(), differences);
-                } else if (refVal != null && refVal.isJsonArray()) {
-                    // Section supprimée
-                    for (JsonElement elem : refVal.getAsJsonArray()) {
-                        if (elem.isJsonObject()) {
-                            JsonObject obj = elem.getAsJsonObject();
-                            String subId = getSubId(obj, subKey);
-                            if (subId != null) {
-                                differences.add(new Difference(entityId, ChangeType.DELETION, key, subKey + "=" + subId, 
-                                    elem.toString(), null));
-                            }
-                        }
-                    }
-                } else if (novVal != null && novVal.isJsonArray()) {
-                    // Section ajoutée
-                    for (JsonElement elem : novVal.getAsJsonArray()) {
-                        if (elem.isJsonObject()) {
-                            JsonObject obj = elem.getAsJsonObject();
-                            String subId = getSubId(obj, subKey);
-                            if (subId != null) {
-                                differences.add(new Difference(entityId, ChangeType.ADDITION, key, subKey + "=" + subId, 
-                                    null, elem.toString()));
-                            }
-                        }
-                    }
-                }
-            }
-            // Champ simple ou section classique
-            else {
-                if (refVal == null && novVal != null) {
-                    differences.add(new Difference(entityId, ChangeType.ADDITION, key, key, null, novVal.toString()));
-                } else if (refVal != null && novVal == null) {
-                    differences.add(new Difference(entityId, ChangeType.DELETION, key, key, refVal.toString(), null));
-                } else if (refVal != null && novVal != null && !refVal.equals(novVal)) {
-                    if (refVal.isJsonPrimitive() && novVal.isJsonPrimitive()) {
-                        String cleFinale = "Modified field : " + key;
-                        differences.add(new Difference(entityId, ChangeType.MODIFICATION, key, 
-                            cleFinale, refVal.getAsString(), novVal.getAsString()));
-                    } else if (refVal.isJsonObject() && novVal.isJsonObject()) {
-                        // Comparaison récursive des objets imbriqués
-                        compareNestedObjects(entityId, key, refVal.getAsJsonObject(), novVal.getAsJsonObject(), differences, subSectionKeys);
-                    } else if (refVal.isJsonArray() && novVal.isJsonArray()) {
-                        // Comparaison des tableaux sans clé spécifique
-                        if (!refVal.equals(novVal)) {
-                            differences.add(new Difference(entityId, ChangeType.MODIFICATION, key, 
-                                "array", refVal.toString(), novVal.toString()));
-                        }
-                    } else {
-                        // Types différents
-                        differences.add(new Difference(entityId, ChangeType.MODIFICATION, key, 
-                            "mixed", refVal.toString(), novVal.toString()));
-                    }
-                }
-            }
-        }
-    }
-
-    // Comparaison des objets imbriqués - maintient la hiérarchie dans le chemin des clés
-    private void compareNestedObjects(String entityId, String section, JsonObject ref, JsonObject nov, 
-                                     List<Difference> differences, JsonObject subSectionKeys) {
-        Set<String> allKeys = new HashSet<>();
-        allKeys.addAll(ref.keySet());
-        allKeys.addAll(nov.keySet());
-
-        for (String key : allKeys) {
-            JsonElement refVal = ref.get(key);
-            JsonElement novVal = nov.get(key);
-
-            if (refVal == null && novVal != null) {
-                differences.add(new Difference(entityId, ChangeType.ADDITION, section, key, null, novVal.toString()));
-            } else if (refVal != null && novVal == null) {
-                differences.add(new Difference(entityId, ChangeType.DELETION, section, key, refVal.toString(), null));
-            } else if (refVal != null && novVal != null && !refVal.equals(novVal)) {
-                // Cas des tableaux imbriqués
-                if (refVal.isJsonArray() && novVal.isJsonArray()) {
-                    if (subSectionKeys != null && subSectionKeys.has(key)) {
-                        String subKey = subSectionKeys.get(key).getAsString();
-                        compareJsonArraysByKey(entityId, key, subKey, refVal.getAsJsonArray(), novVal.getAsJsonArray(), differences);
-                    } else {
-                        if (!refVal.equals(novVal)) {
-                            differences.add(new Difference(entityId, ChangeType.MODIFICATION, section, 
-                                key, refVal.toString(), novVal.toString()));
-                        }
-                    }
-                } 
-                // Cas des objets imbriqués
-                else if (refVal.isJsonObject() && novVal.isJsonObject()) {
-                    compareNestedObjects(entityId, section + "." + key, refVal.getAsJsonObject(), 
-                                        novVal.getAsJsonObject(), differences, subSectionKeys);
-                } 
-                // Cas des valeurs simples
-                else {
-                    differences.add(new Difference(entityId, ChangeType.MODIFICATION, section, 
-                        key, refVal.toString(), novVal.toString()));
-                }
-            }
-        }
-    }
-
-    // Comparaison des tableaux par clé - similaire à l'original compareJsonArraysByKey
-    private void compareJsonArraysByKey(String entityId, String section, String subKey, 
-                                       JsonArray refArray, JsonArray novArray, List<Difference> differences) {
-        Map<String, JsonObject> mapRef = new HashMap<>();
-        for (JsonElement elem : refArray) {
-            if (elem.isJsonObject()) {
-                JsonObject obj = elem.getAsJsonObject();
-                if (obj.has(subKey)) {
-                    mapRef.put(obj.get(subKey).getAsString(), obj);
-                }
-            }
-        }
-        
-        Map<String, JsonObject> mapNouv = new HashMap<>();
-        for (JsonElement elem : novArray) {
-            if (elem.isJsonObject()) {
-                JsonObject obj = elem.getAsJsonObject();
-                if (obj.has(subKey)) {
-                    mapNouv.put(obj.get(subKey).getAsString(), obj);
-                }
-            }
-        }
-        
-        Set<String> toutesLesCles = new HashSet<>();
-        toutesLesCles.addAll(mapRef.keySet());
-        toutesLesCles.addAll(mapNouv.keySet());
-        
-        for (String k : toutesLesCles) {
-            JsonObject objRef = mapRef.get(k);
-            JsonObject objNouv = mapNouv.get(k);
-            
-            if (objRef == null) {
-                differences.add(new Difference(entityId, ChangeType.ADDITION, section, 
-                    subKey + "=" + k, null, objNouv.toString()));
-            } else if (objNouv == null) {
-                differences.add(new Difference(entityId, ChangeType.DELETION, section, 
-                    subKey + "=" + k, objRef.toString(), null));
+            List<String> subKeys = config.getSubSectionKeyList(section);
+            if (!subKeys.isEmpty() && r != null && r.isJsonArray() && n != null && n.isJsonArray()) {
+                compareSubSection(objectId, section, subKeys, r.getAsJsonArray(), n.getAsJsonArray(), diffs);
             } else {
-                Set<String> tousLesChamps = new HashSet<>();
-                tousLesChamps.addAll(objRef.keySet());
-                tousLesChamps.addAll(objNouv.keySet());
-                
-                for (String champ : tousLesChamps) {
-                    JsonElement val1 = objRef.get(champ);
-                    JsonElement val2 = objNouv.get(champ);
-                    
-                    if (val1 == null && val2 != null) {
-                        differences.add(new Difference(entityId, ChangeType.ADDITION, section, 
-                            subKey + "=" + k + "." + champ, null, val2.toString()));
-                    } else if (val1 != null && val2 == null) {
-                        differences.add(new Difference(entityId, ChangeType.DELETION, section, 
-                            subKey + "=" + k + "." + champ, val1.toString(), null));
-                    } else if (val1 != null && val2 != null && !val1.equals(val2)) {
-                        if (val1.isJsonObject() && val2.isJsonObject()) {
-                            // Appel pour sous-objet
-                            compareNestedObjects(entityId, section, val1.getAsJsonObject(), val2.getAsJsonObject(), 
-                                               differences, null);
-                        } else if (val1.isJsonArray() && val2.isJsonArray()) {
-                            // Comparaison directe si ce sont deux tableaux
-                            if (!val1.equals(val2)) {
-                                String cleFinale = "Object.key : " + subKey + " = " + k + " | Modified field : " + champ;
-                                differences.add(new Difference(entityId, ChangeType.MODIFICATION, section, 
-                                    cleFinale, val1.toString(), val2.toString()));
-                            }
-                        } else {
-                            // Valeur simple dans un élément de tableau
-                            String cleFinale = "Object.key : " + subKey + " = " + k + " | Modified field : " + champ;
-                            differences.add(new Difference(entityId, ChangeType.MODIFICATION, section, 
-                                cleFinale, val1.toString(), val2.toString()));
-                        }
+                compareField(objectId, section, r, n, diffs);
+            }
+        }
+    }
+
+    private void compareField(String objectId, String section, JsonElement r, JsonElement n, List<Difference> diffs) {
+        if (r == null && n != null) {
+            diffs.add(new Difference(objectId, ChangeType.ADDITION, section, section, null, extractSimpleValue(n)));
+        } else if (r != null && n == null) {
+            diffs.add(new Difference(objectId, ChangeType.DELETION, section, section, extractSimpleValue(r), null));
+        } else if (r != null && n != null && !r.equals(n)) {
+            if (r.isJsonPrimitive() && n.isJsonPrimitive()) {
+                diffs.add(new Difference(objectId, ChangeType.MODIFICATION, section, section, r.getAsString(), n.getAsString()));
+            } else {
+                diffs.add(new Difference(objectId, ChangeType.MODIFICATION, section, section, extractSimpleValue(r), extractSimpleValue(n)));
+            }
+        }
+    }
+
+    // --- Gestion des clés multiples dans les sous-sections ---
+    private void compareSubSection(String objectId, String section, List<String> keys, JsonArray refArr, JsonArray newArr, List<Difference> diffs) {
+        Map<String, JsonObject> refMap = indexByCompositeKey(refArr, keys);
+        Map<String, JsonObject> newMap = indexByCompositeKey(newArr, keys);
+        Set<String> allIds = new HashSet<>(refMap.keySet());
+        allIds.addAll(newMap.keySet());
+
+        for (String subId : allIds) {
+            JsonObject o1 = refMap.get(subId);
+            JsonObject o2 = newMap.get(subId);
+            if (o1 == null) {
+                for (String f : o2.keySet()) {
+                    diffs.add(new Difference(objectId, ChangeType.ADDITION,
+                        section, subId + ", " + f,
+                        null, extractSimpleValue(o2.get(f))));
+                }
+            } else if (o2 == null) {
+                for (String f : o1.keySet()) {
+                    diffs.add(new Difference(objectId, ChangeType.DELETION,
+                        section, subId + ", " + f,
+                        extractSimpleValue(o1.get(f)), null));
+                }
+            } else {
+                Set<String> allFields = new HashSet<>(o1.keySet());
+                allFields.addAll(o2.keySet());
+                for (String f : allFields) {
+                    JsonElement v1 = o1.get(f), v2 = o2.get(f);
+                    if ((v1 == null && v2 != null)
+                     || (v1 != null && v2 == null)
+                     || (v1 != null && v2 != null && !v1.equals(v2))) {
+                        ChangeType type = v1 == null ? ChangeType.ADDITION
+                                        : v2 == null ? ChangeType.DELETION
+                                                     : ChangeType.MODIFICATION;
+                        diffs.add(new Difference(objectId, type,
+                            section, subId + ", " + f,
+                            extractSimpleValue(v1), extractSimpleValue(v2)));
                     }
                 }
             }
         }
     }
 
-    private String getSubId(JsonObject obj, String subKey) {
-        if (subKey == null || subKey.isEmpty()) return null;
-        if (!obj.has(subKey)) return null;
-        
-        JsonElement val = obj.get(subKey);
-        return val.isJsonPrimitive() ? val.getAsString() : val.toString();
+    private Map<String, JsonObject> indexByCompositeKey(JsonArray arr, List<String> keys) {
+        Map<String, JsonObject> map = new HashMap<>();
+        for (JsonElement e : arr) {
+            JsonObject o = e.getAsJsonObject();
+            String id = computeCompositeKey(o, keys);
+            if (id != null) map.put(id, o);
+        }
+        return map;
+    }
+
+    private String computeCompositeKey(JsonObject obj, List<String> keys) {
+        List<String> values = new ArrayList<>();
+        for (String k : keys) {
+            if (!obj.has(k) || !obj.get(k).isJsonPrimitive()) return null;
+            values.add(obj.get(k).getAsString());
+        }
+        return String.join("|", values);
+    }
+
+    private String extractSimpleValue(JsonElement el) {
+        if (el == null) return null;
+        if (el.isJsonPrimitive()) return el.getAsString();
+        return "";
     }
 }
