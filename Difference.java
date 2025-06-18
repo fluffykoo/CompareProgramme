@@ -1,28 +1,26 @@
-package com.mmd;
+package com.mmd.json;
 
 public class Difference {
-    private String id;
-    private TypeChangement type;
+    private String entityId;
+    private ChangeType type;
     private String section;
-    private String cle;
-    private String valeurAncienne;
-    private String valeurNouvelle;
-    
-    public Difference(String id, TypeChangement type, String section, 
-                     String cle, String valeurAncienne, String valeurNouvelle) {
-        this.id = id;
+    private String key;
+    private String oldValue;
+    private String newValue;
+
+    public Difference(String entityId, ChangeType type, String section, String key, String oldValue, String newValue) {
+        this.entityId = entityId;
         this.type = type;
         this.section = section;
-        this.cle = cle;
-        this.valeurAncienne = valeurAncienne;
-        this.valeurNouvelle = valeurNouvelle;
+        this.key = key;
+        this.oldValue = oldValue;
+        this.newValue = newValue;
     }
-    
-    // Getters
-    public String getId() { return id; }
-    public TypeChangement getType() { return type; }
+
+    public String getEntityId() { return entityId; }
+    public ChangeType getType() { return type; }
     public String getSection() { return section; }
-    public String getCle() { return cle; }
-    public String getValeurAncienne() { return valeurAncienne; }
-    public String getValeurNouvelle() { return valeurNouvelle; }
+    public String getKey() { return key; }
+    public String getOldValue() { return oldValue; }
+    public String getNewValue() { return newValue; }
 }
