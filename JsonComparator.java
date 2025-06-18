@@ -11,37 +11,30 @@ public class JsonComparator {
         this.config = new ConfigurationManager(configFile);
     }
 
-    public List<Difference> compare(String referenceFile,
-                                    String newFile) throws IOException {
-        JsonArray refArray = JsonParser
-            .parseReader(new FileReader(referenceFile))
-            .getAsJsonArray();
-        JsonArray newArray = JsonParser
-            .parseReader(new FileReader(newFile))
-            .getAsJsonArray();
+    public List<Difference> compare(String referenceFile, String newFile) throws IOException {
+        JsonArray refArray = JsonParser.parseReader(new FileReader(referenceFile)).getAsJsonArray();
+        JsonArray newArray = JsonParser.parseReader(new FileReader(newFile)).getAsJsonArray();
 
         Map<String, JsonObject> refMap = indexEntities(refArray);
         Map<String, JsonObject> newMap = indexEntities(newArray);
-        List<Difference> diffs = new ArrayList<>();
+
+        List<Difference> differences = new ArrayList<>();
 
         // Handle deletions and modifications
-        for (String id : refMap.keySet()) {
-            if (!newMap.containsKey(id)) {
-                diffs.add(new Difference(id, ChangeType.DELETION,
-                                         "", "", null, null));
+        for (String entityId : refMap.keySet()) {
+            if (!newMap.containsKey(entityId)) {
+                differences.add(new Difference(entityId, ChangeType.DELETION, "", "", null, null));
             } else {
-                compareEntities(id, refMap.get(id),
-                                 newMap.get(id), diffs);
+                compareEntities(entityId, refMap.get(entityId), newMap.get(entityId), differences);
             }
         }
         // Handle additions
-        for (String id : newMap.keySet()) {
-            if (!refMap.containsKey(id)) {
-                diffs.add(new Difference(id, ChangeType.ADDITION,
-                                         "", "", null, null));
+        for (String entityId : newMap.keySet()) {
+            if (!refMap.containsKey(entityId)) {
+                differences.add(new Difference(entityId, ChangeType.ADDITION, "", "", null, null));
             }
         }
-        return diffs;
+        return differences;
     }
 
     private Map<String, JsonObject> indexEntities(JsonArray array) {
@@ -77,9 +70,7 @@ public class JsonComparator {
         return null;
     }
 
-    private void compareEntities(String id, JsonObject refObj,
-                                 JsonObject newObj,
-                                 List<Difference> diffs) {
+    private void compareEntities(String id, JsonObject refObj, JsonObject newObj, List<Difference> diffs) {
         Set<String> keys = new HashSet<>();
         keys.addAll(refObj.keySet());
         keys.addAll(newObj.keySet());
@@ -102,80 +93,65 @@ public class JsonComparator {
         }
     }
 
-    private void compareField(String id, String section,
-                              JsonElement r, JsonElement n,
-                              List<Difference> diffs) {
+    private void compareField(String id, String section, JsonElement r, JsonElement n, List<Difference> diffs) {
         if (r == null && n != null) {
-            diffs.add(new Difference(id, ChangeType.ADDITION,
-                                     section, section, null,
-                                     n.toString()));
+            diffs.add(new Difference(id, ChangeType.ADDITION, section, section, null, extractSimpleValue(n)));
         } else if (r != null && n == null) {
-            diffs.add(new Difference(id, ChangeType.DELETION,
-                                     section, section,
-                                     r.toString(), null));
+            diffs.add(new Difference(id, ChangeType.DELETION, section, section, extractSimpleValue(r), null));
         } else if (r != null && n != null && !r.equals(n)) {
             if (r.isJsonPrimitive() && n.isJsonPrimitive()) {
-                diffs.add(new Difference(id, ChangeType.MODIFICATION,
-                                         section, section,
-                                         r.getAsString(),
-                                         n.getAsString()));
+                diffs.add(new Difference(id, ChangeType.MODIFICATION, section, section, r.getAsString(), n.getAsString()));
             } else {
-                diffs.add(new Difference(id, ChangeType.MODIFICATION,
-                                         section, section,
-                                         r.toString(), n.toString()));
+                diffs.add(new Difference(id, ChangeType.MODIFICATION, section, section, extractSimpleValue(r), extractSimpleValue(n)));
             }
         }
     }
 
-    private void compareSubSection(String id, String section,
-                                   String key, JsonArray a, JsonArray b,
-                                   List<Difference> diffs) {
+    // --- CORRECTION PRINCIPALE ICI ---
+    private void compareSubSection(String id, String section, String key, JsonArray a, JsonArray b, List<Difference> diffs) {
         Map<String, JsonObject> m1 = indexByKey(a, key);
         Map<String, JsonObject> m2 = indexByKey(b, key);
         Set<String> all = new HashSet<>(m1.keySet());
         all.addAll(m2.keySet());
 
         for (String subId : all) {
-    JsonObject o1 = m1.get(subId);
-    JsonObject o2 = m2.get(subId);
-    if (o1 == null) {
-        for (String f : o2.keySet()) {
-            JsonElement val = o2.get(f);
-            diffs.add(new Difference(id, ChangeType.ADDITION,
-                section, key + "=" + subId + ", " + f,
-                null, val.toString()));
-        }
-    } else if (o2 == null) {
-        for (String f : o1.keySet()) {
-            JsonElement val = o1.get(f);
-            diffs.add(new Difference(id, ChangeType.DELETION,
-                section, key + "=" + subId + ", " + f,
-                val.toString(), null));
-        }
-    } else {
-        Set<String> allFields = new HashSet<>(o1.keySet());
-        allFields.addAll(o2.keySet());
-        for (String f : allFields) {
-            JsonElement v1 = o1.get(f), v2 = o2.get(f);
-            if ((v1 == null && v2 != null)
-             || (v1 != null && v2 == null)
-             || (v1 != null && v2 != null && !v1.equals(v2))) {
-                ChangeType type = v1 == null ? ChangeType.ADDITION
-                                : v2 == null ? ChangeType.DELETION
-                                             : ChangeType.MODIFICATION;
-                diffs.add(new Difference(id, type,
-                    section, key + "=" + subId + ", " + f,
-                    v1 != null ? v1.toString() : null,
-                    v2 != null ? v2.toString() : null));
+            JsonObject o1 = m1.get(subId);
+            JsonObject o2 = m2.get(subId);
+            if (o1 == null) {
+                for (String f : o2.keySet()) {
+                    JsonElement val = o2.get(f);
+                    diffs.add(new Difference(id, ChangeType.ADDITION,
+                        section, key + "=" + subId + ", " + f,
+                        null, extractSimpleValue(val)));
+                }
+            } else if (o2 == null) {
+                for (String f : o1.keySet()) {
+                    JsonElement val = o1.get(f);
+                    diffs.add(new Difference(id, ChangeType.DELETION,
+                        section, key + "=" + subId + ", " + f,
+                        extractSimpleValue(val), null));
+                }
+            } else {
+                Set<String> allFields = new HashSet<>(o1.keySet());
+                allFields.addAll(o2.keySet());
+                for (String f : allFields) {
+                    JsonElement v1 = o1.get(f), v2 = o2.get(f);
+                    if ((v1 == null && v2 != null)
+                     || (v1 != null && v2 == null)
+                     || (v1 != null && v2 != null && !v1.equals(v2))) {
+                        ChangeType type = v1 == null ? ChangeType.ADDITION
+                                        : v2 == null ? ChangeType.DELETION
+                                                     : ChangeType.MODIFICATION;
+                        diffs.add(new Difference(id, type,
+                            section, key + "=" + subId + ", " + f,
+                            extractSimpleValue(v1), extractSimpleValue(v2)));
+                    }
+                }
             }
         }
     }
-}
 
-    }
-
-    private Map<String, JsonObject> indexByKey(JsonArray arr,
-                                               String key) {
+    private Map<String, JsonObject> indexByKey(JsonArray arr, String key) {
         Map<String, JsonObject> map = new HashMap<>();
         for (JsonElement e : arr) {
             JsonObject o = e.getAsJsonObject();
@@ -184,5 +160,13 @@ public class JsonComparator {
             }
         }
         return map;
+    }
+
+    // Utility to extract only the simple value for Excel/text
+    private String extractSimpleValue(JsonElement el) {
+        if (el == null) return null;
+        if (el.isJsonPrimitive()) return el.getAsString();
+        // For objects/arrays, return empty or a short summary if you want
+        return el.isJsonObject() || el.isJsonArray() ? "" : el.toString();
     }
 }
