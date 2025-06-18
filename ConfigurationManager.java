@@ -9,9 +9,13 @@ public class ConfigurationManager {
     private JsonObject subSectionKeys;
 
     public ConfigurationManager(String configFile) throws IOException {
-        JsonObject config = JsonParser.parseReader(new FileReader(configFile)).getAsJsonObject();
+        JsonObject config = JsonParser
+            .parseReader(new FileReader(configFile))
+            .getAsJsonObject();
         this.primaryKey = config.get("primary_key").getAsString();
-        this.fallbackKey = config.has("fallback_key") ? config.get("fallback_key").getAsString() : null;
+        this.fallbackKey = config.has("fallback_key") 
+            ? config.get("fallback_key").getAsString() 
+            : null;
         this.subSectionKeys = config.getAsJsonObject("subSectionKeys");
     }
 
