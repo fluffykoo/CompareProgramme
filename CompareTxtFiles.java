@@ -1,6 +1,7 @@
 package com.mmd;
 
 import java.io.IOException;
+import java.util.stream.Collectors;
 
 public class CompareTxtFiles {
     public static void main(String[] args) throws IOException {
@@ -17,9 +18,25 @@ public class CompareTxtFiles {
         String dossierRapport = args[3];
 
         TxtComparator comparator = new TxtComparator(afficherDansTerminal);
+
+        int totalAjout = comparator.getXlsxData().stream().filter(l -> "AJOUT".equals(l[0])).toArray().length;
+        int totalSupp = comparator.getXlsxData().stream().filter(l -> "DELETION".equals(l[0])).toArray().length;
+        int totalModif = comparator.getXlsxData().stream().filter(l -> "MODIFICATION".equals(l[0])).map(l -> l[1]).collect(Collectors.toSet()).size();
+        int totalIdentique = comparator.getTotalIdentique(); // méthode à ajouter
+
         comparator.runComparison(fichier1, fichier2, indexCle);
 
         TxtReportGenerator generator = new TxtReportGenerator(afficherDansTerminal);
         generator.generateReports(dossierRapport, comparator.getRapportTexte(), comparator.getXlsxData());
+
+        System.out.println();
+        System.out.println("=== Summary ===");
+        System.out.println("Reference file : " + fichier1);
+        System.out.println("New file       : " + fichier2);
+        System.out.println("Report folder  : " + dossierRapport);
+        System.out.println("* Identical rows : " + totalIdentique);
+        System.out.println("* Modified rows  : " + totalModif);
+        System.out.println("* Added rows     : " + totalAjout);
+        System.out.println("* Deleted rows   : " + totalSupp);
     }
 }
