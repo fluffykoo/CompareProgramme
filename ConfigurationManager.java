@@ -1,28 +1,21 @@
-package com.mmd;
+package com.mmd.json;
 
 import com.google.gson.*;
 import java.io.*;
 
 public class ConfigurationManager {
-    private String clePrincipale;
-    private String cleSecondaire;
+    private String primaryKey;
+    private String fallbackKey;
     private JsonObject subSectionKeys;
-    
-    public ConfigurationManager(String fichierConfig) throws IOException {
-        chargerConfiguration(fichierConfig);
-    }
-    
-    private void chargerConfiguration(String fichierConfig) throws IOException {
-        JsonObject config = JsonParser.parseReader(new FileReader(fichierConfig)).getAsJsonObject();
-        
-        this.clePrincipale = config.get("primary_key").getAsString();
-        this.cleSecondaire = config.has("fallback_key") ? 
-            config.get("fallback_key").getAsString() : null;
+
+    public ConfigurationManager(String configFile) throws IOException {
+        JsonObject config = JsonParser.parseReader(new FileReader(configFile)).getAsJsonObject();
+        this.primaryKey = config.get("primary_key").getAsString();
+        this.fallbackKey = config.has("fallback_key") ? config.get("fallback_key").getAsString() : null;
         this.subSectionKeys = config.getAsJsonObject("subSectionKeys");
     }
-    
-    // Getters
-    public String getClePrincipale() { return clePrincipale; }
-    public String getCleSecondaire() { return cleSecondaire; }
+
+    public String getPrimaryKey() { return primaryKey; }
+    public String getFallbackKey() { return fallbackKey; }
     public JsonObject getSubSectionKeys() { return subSectionKeys; }
 }
