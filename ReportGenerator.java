@@ -36,9 +36,15 @@ public class ReportGenerator {
                 List<Difference> typedDiffs = diffsByType.get(type);
                 if (typedDiffs != null && !typedDiffs.isEmpty()) {
                     switch (type) {
-                        case ADDITION -> report.append("[Addition]\n");
-                        case MODIFICATION -> report.append("[Modification]\n");
-                        case DELETION -> report.append("[Deletion]\n");
+                        case ADDITION:
+                            report.append("[Addition]\n");
+                            break;
+                        case MODIFICATION:
+                            report.append("[Modification]\n");
+                            break;
+                        case DELETION:
+                            report.append("[Deletion]\n");
+                            break;
                     }
 
                     for (Difference diff : typedDiffs) {
