@@ -7,135 +7,76 @@ import java.nio.file.*;
 import java.util.*;
 
 public class ReportGenerator {
-    private String outputFolder;
-    private String timestamp;
-    
-    public ReportGenerator(String outputFolder, String timestamp) {
-        this.outputFolder = outputFolder;
+    private String outFolder, timestamp;
+
+    public ReportGenerator(String outFolder, String timestamp) {
+        this.outFolder = outFolder;
         this.timestamp = timestamp;
     }
-    
-    public void generateTextReport(List<Difference> differences) throws IOException {
-        StringBuilder report = new StringBuilder();
-        
-        // Regroupement par ID d'entité - comme dans le code original
-        Map<String, List<Difference>> byEntityId = groupByEntityId(differences);
-        
-        report.append("=== Rapport des differences ===\n\n");
-        
-        for (String entityId : new TreeSet<>(byEntityId.keySet())) {
-            List<Difference> entityDiffs = byEntityId.get(entityId);
-            report.append("[Entite (titre, instrument, etc) ").append(entityId).append("]\n");
-            
-            boolean headerShown = false;
-            for (Difference diff : entityDiffs) {
-                if (!headerShown) {
-                    if (diff.getType() == ChangeType.ADDITION) report.append(" [Ajout]\n");
-                    else if (diff.getType() == ChangeType.DELETION) report.append(" [Suppression]\n");
-                    else report.append(" [Modifications]\n");
-                    headerShown = true;
-                }
-                
-                if (diff.getType() == ChangeType.MODIFICATION) {
-                    report.append(" * Section : ").append(diff.getSection());
-                    report.append(" | ").append(diff.getKey()).append("\n");
-                    report.append(" * Valeur fichier de référence : ").append(diff.getOldValue()).append("\n");
-                    report.append(" * Valeur nouveau fichier : ").append(diff.getNewValue()).append("\n");
-                }
-            }
-            report.append("\n");
+
+    public void generateTextReport(List<Difference> diffs)
+            throws IOException {
+        StringBuilder sb = new StringBuilder("=== JSON Comparison ===\n\n");
+        Map<String, List<Difference>> byId = new TreeMap<>();
+        for (Difference d : diffs) {
+            byId.computeIfAbsent(d.getEntityId(), k -> new ArrayList<>()).add(d);
         }
-        
-        // Sauvegarde du fichier
-        String fileName = "rapportJSON_" + timestamp + ".txt";
-        Path filePath = Paths.get(outputFolder, fileName);
-        Files.createDirectories(filePath.getParent());
-        Files.write(filePath, report.toString().getBytes());
-        
-        System.out.println("Fichier .txt genere : " + fileName);
+        for (Map.Entry<String, List<Difference>> e : byId.entrySet()) {
+            sb.append("[Object ").append(e.getKey()).append("]\n");
+            for (Difference d : e.getValue()) {
+                sb.append(String.format(" %s %s: %s -> %s%n",
+                    d.getType(), d.getKey(),
+                    d.getOldValue(), d.getNewValue()));
+            }
+            sb.append("\n");
+        }
+        Files.write(Paths.get(outFolder,
+            "report_" + timestamp + ".txt"),
+            sb.toString().getBytes());
     }
-    
-    public void generateExcelReport(List<Difference> differences) throws IOException {
-        Workbook workbook = new XSSFWorkbook();
-        Sheet sheet = workbook.createSheet("Differences");
-        
-        // Création de l'en-tête
-        Row header = sheet.createRow(0);
-        String[] columns = {"ID", "Type", "Section", "KEY", "OLD VALUE", "NEW VALUE"};
-        for (int i = 0; i < columns.length; i++) {
-            Cell cell = header.createCell(i);
-            cell.setCellValue(columns[i]);
+
+    public void generateExcelReport(List<Difference> diffs)
+            throws IOException {
+        Workbook wb = new XSSFWorkbook();
+        Sheet sheet = wb.createSheet("Differences");
+        String[] cols = {"ID", "Type", "Section", "Key", "Old", "New"};
+        Row h = sheet.createRow(0);
+        for (int i=0; i<cols.length; i++) h.createCell(i).setCellValue(cols[i]);
+
+        Map<ChangeType, CellStyle> styles = new HashMap<>();
+        CellStyle addS = wb.createCellStyle();
+        addS.setFillForegroundColor(IndexedColors.LIGHT_GREEN.getIndex());
+        addS.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        styles.put(ChangeType.ADDITION, addS);
+
+        CellStyle delS = wb.createCellStyle();
+        delS.setFillForegroundColor(IndexedColors.ROSE.getIndex());
+        delS.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        styles.put(ChangeType.DELETION, delS);
+
+        CellStyle modS = wb.createCellStyle();
+        modS.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex());
+        modS.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        styles.put(ChangeType.MODIFICATION, modS);
+
+        int row = 1;
+        for (Difference d : diffs) {
+            Row r = sheet.createRow(row++);
+            r.createCell(0).setCellValue(d.getEntityId());
+            r.createCell(1).setCellValue(d.getType().name());
+            r.createCell(2).setCellValue(d.getSection());
+            r.createCell(3).setCellValue(d.getKey());
+            r.createCell(4).setCellValue(
+                d.getOldValue() != null ? d.getOldValue() : "");
+            r.createCell(5).setCellValue(
+                d.getNewValue() != null ? d.getNewValue() : "");
+            CellStyle s = styles.get(d.getType());
+            for (int i=0; i<6; i++) r.getCell(i).setCellStyle(s);
         }
-        
-        // Création des styles
-        CellStyle ajoutStyle = workbook.createCellStyle();
-        ajoutStyle.setFillForegroundColor(IndexedColors.LIGHT_GREEN.getIndex());
-        ajoutStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-        
-        CellStyle suppressionStyle = workbook.createCellStyle();
-        suppressionStyle.setFillForegroundColor(IndexedColors.ROSE.getIndex());
-        suppressionStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-        
-        CellStyle modificationStyle = workbook.createCellStyle();
-        modificationStyle.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex());
-        modificationStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-        
-        // Remplissage des données
-        int rowNum = 1;
-        for (Difference diff : differences) {
-            Row row = sheet.createRow(rowNum++);
-            row.createCell(0).setCellValue(diff.getEntityId());
-            row.createCell(1).setCellValue(diff.getType().name());
-            row.createCell(2).setCellValue(diff.getSection());
-            row.createCell(3).setCellValue(diff.getKey());
-            row.createCell(4).setCellValue(diff.getOldValue() != null ? diff.getOldValue() : "");
-            row.createCell(5).setCellValue(diff.getNewValue() != null ? diff.getNewValue() : "");
-            
-            // Application du style selon le type de différence
-            CellStyle style;
-            switch (diff.getType()) {
-                case ADDITION:
-                    style = ajoutStyle;
-                    break;
-                case DELETION:
-                    style = suppressionStyle;
-                    break;
-                case MODIFICATION:
-                    style = modificationStyle;
-                    break;
-                default:
-                    style = null;
-            }
-            
-            // Application du style à toute la ligne
-            for (int i = 0; i < 6; i++) {
-                row.getCell(i).setCellStyle(style);
-            }
+        try (OutputStream os = Files.newOutputStream(
+                Paths.get(outFolder, "report_" + timestamp + ".xlsx"))) {
+            wb.write(os);
         }
-        
-        // Sauvegarde du fichier
-        String fileName = "rapportJSON_" + timestamp + ".xlsx";
-        Path filePath = Paths.get(outputFolder, fileName);
-        Files.createDirectories(filePath.getParent());
-        
-        try (OutputStream os = Files.newOutputStream(filePath)) {
-            workbook.write(os);
-        }
-        
-        workbook.close();
-        System.out.println("Fichier .xlsx genere : " + fileName);
-    }
-    
-    private Map<String, List<Difference>> groupByEntityId(List<Difference> differences) {
-        Map<String, List<Difference>> groups = new LinkedHashMap<>();
-        
-        for (Difference diff : differences) {
-            if (!groups.containsKey(diff.getEntityId())) {
-                groups.put(diff.getEntityId(), new ArrayList<>());
-            }
-            groups.get(diff.getEntityId()).add(diff);
-        }
-        
-        return groups;
+        wb.close();
     }
 }
