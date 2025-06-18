@@ -134,9 +134,17 @@ public class JsonComparator {
             JsonObject novObj = novMap.get(subId);
 
             if (refObj == null && novObj != null) {
-                differences.add(new Difference(entityId, ChangeType.ADDITION, section, subKey + "=" + subId, null, novObj.toString()));
+                // Ajout d'un élément complet
+                for (String field : novObj.keySet()) {
+                    JsonElement val = novObj.get(field);
+                    differences.add(new Difference(entityId, ChangeType.ADDITION, section, subKey + "=" + subId + ", " + field, null, val.isJsonPrimitive() ? val.getAsString() : val.toString()));
+                }
             } else if (refObj != null && novObj == null) {
-                differences.add(new Difference(entityId, ChangeType.DELETION, section, subKey + "=" + subId, refObj.toString(), null));
+                // Suppression d'un élément complet
+                for (String field : refObj.keySet()) {
+                    JsonElement val = refObj.get(field);
+                    differences.add(new Difference(entityId, ChangeType.DELETION, section, subKey + "=" + subId + ", " + field, val.isJsonPrimitive() ? val.getAsString() : val.toString(), null));
+                }
             } else if (refObj != null && novObj != null) {
                 // Compare fields inside the sub-object
                 Set<String> allFields = new HashSet<>();
@@ -146,11 +154,11 @@ public class JsonComparator {
                     JsonElement refVal = refObj.get(field);
                     JsonElement novVal = novObj.get(field);
                     if (refVal == null && novVal != null) {
-                        differences.add(new Difference(entityId, ChangeType.ADDITION, section, subKey + "=" + subId + ", " + field, null, novVal.toString()));
+                        differences.add(new Difference(entityId, ChangeType.ADDITION, section, subKey + "=" + subId + ", " + field, null, novVal.isJsonPrimitive() ? novVal.getAsString() : novVal.toString()));
                     } else if (refVal != null && novVal == null) {
-                        differences.add(new Difference(entityId, ChangeType.DELETION, section, subKey + "=" + subId + ", " + field, refVal.toString(), null));
+                        differences.add(new Difference(entityId, ChangeType.DELETION, section, subKey + "=" + subId + ", " + field, refVal.isJsonPrimitive() ? refVal.getAsString() : refVal.toString(), null));
                     } else if (refVal != null && novVal != null && !refVal.equals(novVal)) {
-                        differences.add(new Difference(entityId, ChangeType.MODIFICATION, section, subKey + "=" + subId + ", " + field, refVal.toString(), novVal.toString()));
+                        differences.add(new Difference(entityId, ChangeType.MODIFICATION, section, subKey + "=" + subId + ", " + field, refVal.isJsonPrimitive() ? refVal.getAsString() : refVal.toString(), novVal.isJsonPrimitive() ? novVal.getAsString() : novVal.toString()));
                     }
                 }
             }
