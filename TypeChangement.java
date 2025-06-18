@@ -1,7 +1,7 @@
-package com.mmd;
+package com.mmd.json;
 
-public enum TypeChangement {
-    AJOUT,
-    SUPPRESSION,  
+public enum ChangeType {
+    ADDITION,
+    DELETION,
     MODIFICATION
 }
