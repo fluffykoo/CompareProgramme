@@ -21,17 +21,17 @@ public class JsonComparator {
         List<Difference> differences = new ArrayList<>();
 
         // Handle deletions and modifications
-        for (String entityId : refMap.keySet()) {
-            if (!newMap.containsKey(entityId)) {
-                differences.add(new Difference(entityId, ChangeType.DELETION, "", "", null, null));
+        for (String objectId : refMap.keySet()) {
+            if (!newMap.containsKey(objectId)) {
+                differences.add(new Difference(objectId, ChangeType.DELETION, "", "", null, null));
             } else {
-                compareEntities(entityId, refMap.get(entityId), newMap.get(entityId), differences);
+                compareObjects(objectId, refMap.get(objectId), newMap.get(objectId), differences);
             }
         }
         // Handle additions
-        for (String entityId : newMap.keySet()) {
-            if (!refMap.containsKey(entityId)) {
-                differences.add(new Difference(entityId, ChangeType.ADDITION, "", "", null, null));
+        for (String objectId : newMap.keySet()) {
+            if (!refMap.containsKey(objectId)) {
+                differences.add(new Difference(objectId, ChangeType.ADDITION, "", "", null, null));
             }
         }
         return differences;
@@ -70,7 +70,7 @@ public class JsonComparator {
         return null;
     }
 
-    private void compareEntities(String id, JsonObject refObj, JsonObject newObj, List<Difference> diffs) {
+    private void compareObjects(String objectId, JsonObject refObj, JsonObject newObj, List<Difference> diffs) {
         Set<String> keys = new HashSet<>();
         keys.addAll(refObj.keySet());
         keys.addAll(newObj.keySet());
@@ -83,32 +83,31 @@ public class JsonComparator {
             if (subKeys != null && subKeys.has(section)
                 && r != null && r.isJsonArray()
                 && n != null && n.isJsonArray()) {
-                compareSubSection(id, section,
+                compareSubSection(objectId, section,
                     subKeys.get(section).getAsString(),
                     r.getAsJsonArray(),
                     n.getAsJsonArray(), diffs);
             } else {
-                compareField(id, section, r, n, diffs);
+                compareField(objectId, section, r, n, diffs);
             }
         }
     }
 
-    private void compareField(String id, String section, JsonElement r, JsonElement n, List<Difference> diffs) {
+    private void compareField(String objectId, String section, JsonElement r, JsonElement n, List<Difference> diffs) {
         if (r == null && n != null) {
-            diffs.add(new Difference(id, ChangeType.ADDITION, section, section, null, extractSimpleValue(n)));
+            diffs.add(new Difference(objectId, ChangeType.ADDITION, section, section, null, extractSimpleValue(n)));
         } else if (r != null && n == null) {
-            diffs.add(new Difference(id, ChangeType.DELETION, section, section, extractSimpleValue(r), null));
+            diffs.add(new Difference(objectId, ChangeType.DELETION, section, section, extractSimpleValue(r), null));
         } else if (r != null && n != null && !r.equals(n)) {
             if (r.isJsonPrimitive() && n.isJsonPrimitive()) {
-                diffs.add(new Difference(id, ChangeType.MODIFICATION, section, section, r.getAsString(), n.getAsString()));
+                diffs.add(new Difference(objectId, ChangeType.MODIFICATION, section, section, r.getAsString(), n.getAsString()));
             } else {
-                diffs.add(new Difference(id, ChangeType.MODIFICATION, section, section, extractSimpleValue(r), extractSimpleValue(n)));
+                diffs.add(new Difference(objectId, ChangeType.MODIFICATION, section, section, extractSimpleValue(r), extractSimpleValue(n)));
             }
         }
     }
 
-    // --- CORRECTION PRINCIPALE ICI ---
-    private void compareSubSection(String id, String section, String key, JsonArray a, JsonArray b, List<Difference> diffs) {
+    private void compareSubSection(String objectId, String section, String key, JsonArray a, JsonArray b, List<Difference> diffs) {
         Map<String, JsonObject> m1 = indexByKey(a, key);
         Map<String, JsonObject> m2 = indexByKey(b, key);
         Set<String> all = new HashSet<>(m1.keySet());
@@ -120,14 +119,14 @@ public class JsonComparator {
             if (o1 == null) {
                 for (String f : o2.keySet()) {
                     JsonElement val = o2.get(f);
-                    diffs.add(new Difference(id, ChangeType.ADDITION,
+                    diffs.add(new Difference(objectId, ChangeType.ADDITION,
                         section, key + "=" + subId + ", " + f,
                         null, extractSimpleValue(val)));
                 }
             } else if (o2 == null) {
                 for (String f : o1.keySet()) {
                     JsonElement val = o1.get(f);
-                    diffs.add(new Difference(id, ChangeType.DELETION,
+                    diffs.add(new Difference(objectId, ChangeType.DELETION,
                         section, key + "=" + subId + ", " + f,
                         extractSimpleValue(val), null));
                 }
@@ -142,7 +141,7 @@ public class JsonComparator {
                         ChangeType type = v1 == null ? ChangeType.ADDITION
                                         : v2 == null ? ChangeType.DELETION
                                                      : ChangeType.MODIFICATION;
-                        diffs.add(new Difference(id, type,
+                        diffs.add(new Difference(objectId, type,
                             section, key + "=" + subId + ", " + f,
                             extractSimpleValue(v1), extractSimpleValue(v2)));
                     }
@@ -165,8 +164,10 @@ public class JsonComparator {
     // Utility to extract only the simple value for Excel/text
     private String extractSimpleValue(JsonElement el) {
         if (el == null) return null;
-        if (el.isJsonPrimitive()) return el.getAsString();
-        // For objects/arrays, return empty or a short summary if you want
-        return el.isJsonObject() || el.isJsonArray() ? "" : el.toString();
+        if (el.isJsonPrimitive()) {
+            return el.getAsString();
+        }
+        // For objects/arrays, return empty string (or a summary if you want)
+        return "";
     }
 }
