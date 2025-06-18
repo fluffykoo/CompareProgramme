@@ -21,29 +21,37 @@ public class ReportGenerator {
         // Regroupement par ID d'entité - comme dans le code original
         Map<String, List<Difference>> byEntityId = groupByEntityId(differences);
         
-        report.append("=== Rapport des differences ===\n\n");
-        
+        report.append("=== Differences Report ===\n\n");
+
         for (String entityId : new TreeSet<>(byEntityId.keySet())) {
             List<Difference> entityDiffs = byEntityId.get(entityId);
-            report.append("[Entite (titre, instrument, etc) ").append(entityId).append("]\n");
-            
-            boolean headerShown = false;
+            report.append("[Entity ").append(entityId).append("]\n");
+
+            Map<ChangeType, List<Difference>> diffsByType = new EnumMap<>(ChangeType.class);
             for (Difference diff : entityDiffs) {
-                if (!headerShown) {
-                    if (diff.getType() == ChangeType.ADDITION) report.append(" [Ajout]\n");
-                    else if (diff.getType() == ChangeType.DELETION) report.append(" [Suppression]\n");
-                    else report.append(" [Modifications]\n");
-                    headerShown = true;
-                }
-                
-                if (diff.getType() == ChangeType.MODIFICATION) {
-                    report.append(" * Section : ").append(diff.getSection());
-                    report.append(" | ").append(diff.getKey()).append("\n");
-                    report.append(" * Valeur fichier de référence : ").append(diff.getOldValue()).append("\n");
-                    report.append(" * Valeur nouveau fichier : ").append(diff.getNewValue()).append("\n");
+                diffsByType.computeIfAbsent(diff.getType(), k -> new ArrayList<>()).add(diff);
+            }
+
+            for (ChangeType type : ChangeType.values()) {
+                List<Difference> typedDiffs = diffsByType.get(type);
+                if (typedDiffs != null && !typedDiffs.isEmpty()) {
+                    switch (type) {
+                        case ADDITION -> report.append("[Addition]\n");
+                        case MODIFICATION -> report.append("[Modification]\n");
+                        case DELETION -> report.append("[Deletion]\n");
+                    }
+
+                    for (Difference diff : typedDiffs) {
+                        report.append(" * Section: ").append(diff.getSection());
+                        report.append(" | ").append(diff.getKey()).append("\n");
+                        if (type != ChangeType.ADDITION)
+                            report.append(" * Reference file value: ").append(diff.getOldValue()).append("\n");
+                        if (type != ChangeType.DELETION)
+                            report.append(" * New file value: ").append(diff.getNewValue()).append("\n");
+                    }
+                    report.append("\n");
                 }
             }
-            report.append("\n");
         }
         
         // Sauvegarde du fichier
@@ -52,7 +60,7 @@ public class ReportGenerator {
         Files.createDirectories(filePath.getParent());
         Files.write(filePath, report.toString().getBytes());
         
-        System.out.println("Fichier .txt genere : " + fileName);
+        System.out.println("Text report generated: " + fileName);
     }
     
     public void generateExcelReport(List<Difference> differences) throws IOException {
