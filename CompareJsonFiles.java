@@ -1,40 +1,64 @@
 package com.mmd.json;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.List;
+import java.io.*;
+import java.time.*;
+import java.time.format.*;
+import java.util.*;
 
 public class CompareJsonFiles {
     public static void main(String[] args) throws Exception {
         if (args.length != 4) {
-            System.out.println("Usage: java CompareJsonFiles <referenceFile> <newFile> <outputFolder> <configFile>");
+            System.out.println(
+              "Usage: java CompareJsonFiles <refFile> <newFile> "
+            + "<outputFolder> <configFile>");
             return;
         }
-        String referenceFile = args[0];
-        String newFile = args[1];
-        String outputFolder = args[2];
-        String configFile = args[3];
+        String refFile   = args[0];
+        String newFile   = args[1];
+        String outFolder = args[2];
+        String cfgFile   = args[3];
 
-        JsonComparator comparator = new JsonComparator(configFile);
-        List<Difference> differences = comparator.compare(referenceFile, newFile);
+        JsonComparator comp = new JsonComparator(cfgFile);
+        List<Difference> diffs = comp.compare(refFile, newFile);
 
-        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
-        ReportGenerator generator = new ReportGenerator(outputFolder, timestamp);
+        String ts = LocalDateTime.now()
+            .format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+        ReportGenerator gen = new ReportGenerator(outFolder, ts);
+        gen.generateTextReport(diffs);
+        gen.generateExcelReport(diffs);
 
-        generator.generateTextReport(differences);
-        generator.generateExcelReport(differences);
-
-        displaySummary(differences);
+        displaySummary(diffs, comp.indexEntities(
+            JsonParser.parseReader(new FileReader(refFile))
+                     .getAsJsonArray()),
+                       comp.indexEntities(
+            JsonParser.parseReader(new FileReader(newFile))
+                     .getAsJsonArray()));
     }
 
-    private static void displaySummary(List<Difference> differences) {
-        long additions = differences.stream().filter(d -> d.getType() == ChangeType.ADDITION).count();
-        long deletions = differences.stream().filter(d -> d.getType() == ChangeType.DELETION).count();
-        long modifications = differences.stream().filter(d -> d.getType() == ChangeType.MODIFICATION).count();
+    private static void displaySummary(List<Difference> diffs,
+                                       Map<String, JsonObject> refMap,
+                                       Map<String, JsonObject> newMap) {
+        int totalRef = refMap.size();
+        int totalNew = newMap.size();
+        int isoCount = 0, added = 0, deleted = 0;
+
+        for (String id : refMap.keySet()) {
+            if (!newMap.containsKey(id)) deleted++;
+            else if (diffs.stream()
+                  .noneMatch(d -> d.getEntityId().equals(id)
+                              && d.getType() == ChangeType.MODIFICATION)) {
+                isoCount++;
+            }
+        }
+        for (String id : newMap.keySet()) {
+            if (!refMap.containsKey(id)) added++;
+        }
 
         System.out.println("\n=== Summary ===");
-        System.out.println("Additions: " + additions);
-        System.out.println("Deletions: " + deletions);
-        System.out.println("Modifications: " + modifications);
+        System.out.printf("Reference file: %d objects%n", totalRef);
+        System.out.printf("New file: %d objects%n%n", totalNew);
+        System.out.printf("Iso objects: %d%n", isoCount);
+        System.out.printf("Objects added: %d%n", added);
+        System.out.printf("Objects deleted: %d%n", deleted);
     }
 }
