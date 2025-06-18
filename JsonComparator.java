@@ -122,4 +122,57 @@ public class JsonComparator {
 
     // Compare arrays in sub-sections using subSectionKeys
     private void compareSubSectionArrays(String entityId, String section, String subKey, JsonArray refArray, JsonArray novArray, List<Difference> differences) {
-        Map<String, JsonObject> refMap = indexBySubKey(refArray, sub
+        Map<String, JsonObject> refMap = indexBySubKey(refArray, subKey);
+        Map<String, JsonObject> novMap = indexBySubKey(novArray, subKey);
+
+        Set<String> allSubIds = new HashSet<>();
+        allSubIds.addAll(refMap.keySet());
+        allSubIds.addAll(novMap.keySet());
+
+        for (String subId : allSubIds) {
+            JsonObject refObj = refMap.get(subId);
+            JsonObject novObj = novMap.get(subId);
+
+            if (refObj == null && novObj != null) {
+                differences.add(new Difference(entityId, ChangeType.ADDITION, section, subKey + "=" + subId, null, novObj.toString()));
+            } else if (refObj != null && novObj == null) {
+                differences.add(new Difference(entityId, ChangeType.DELETION, section, subKey + "=" + subId, refObj.toString(), null));
+            } else if (refObj != null && novObj != null) {
+                // Compare fields inside the sub-object
+                Set<String> allFields = new HashSet<>();
+                allFields.addAll(refObj.keySet());
+                allFields.addAll(novObj.keySet());
+                for (String field : allFields) {
+                    JsonElement refVal = refObj.get(field);
+                    JsonElement novVal = novObj.get(field);
+                    if (refVal == null && novVal != null) {
+                        differences.add(new Difference(entityId, ChangeType.ADDITION, section, subKey + "=" + subId + ", " + field, null, novVal.toString()));
+                    } else if (refVal != null && novVal == null) {
+                        differences.add(new Difference(entityId, ChangeType.DELETION, section, subKey + "=" + subId + ", " + field, refVal.toString(), null));
+                    } else if (refVal != null && novVal != null && !refVal.equals(novVal)) {
+                        differences.add(new Difference(entityId, ChangeType.MODIFICATION, section, subKey + "=" + subId + ", " + field, refVal.toString(), novVal.toString()));
+                    }
+                }
+            }
+        }
+    }
+
+    private Map<String, JsonObject> indexBySubKey(JsonArray array, String subKey) {
+        Map<String, JsonObject> map = new HashMap<>();
+        for (JsonElement elem : array) {
+            if (elem.isJsonObject()) {
+                JsonObject obj = elem.getAsJsonObject();
+                String key = getSubId(obj, subKey);
+                if (key != null) map.put(key, obj);
+            }
+        }
+        return map;
+    }
+
+    private String getSubId(JsonObject obj, String subKey) {
+        if (subKey == null || subKey.isEmpty()) return obj.toString();
+        if (!obj.has(subKey)) return null;
+        JsonElement val = obj.get(subKey);
+        return val.isJsonPrimitive() ? val.getAsString() : val.toString();
+    }
+}
