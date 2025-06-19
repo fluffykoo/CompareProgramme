@@ -116,11 +116,8 @@ public class JsonComparator {
             }
             // Champ simple ou section classique
             else {
-                Map<String, List<String>> ignoredFields = config.getIgnoredFields();
-                if (ignoredFields.containsKey(key)) {
-                    List<String> ignoredKeys = ignoredFields.get(key);
-                    if (ignoredKeys.contains(key)) continue;
-                }
+                List<String> ignoredKeys = config.getIgnoredFields(key);
+                if (ignoredKeys.contains(key)) continue;
                 if (refVal == null && novVal != null) {
                     differences.add(new Difference(entityId, ChangeType.ADDITION, key, key, null, novVal.toString()));
                 } else if (refVal != null && novVal == null) {
