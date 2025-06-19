@@ -1,4 +1,4 @@
-package com.mmd;
+package com.mmd.txt;
 
 import java.io.IOException;
 import java.util.stream.Collectors;
