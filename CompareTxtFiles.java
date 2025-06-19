@@ -8,46 +8,63 @@ import java.util.*;
 
 public class CompareTxtFiles {
     public static void main(String[] args) throws IOException {
-        if (args.length < 4) {
-            System.out.println("Usage: java CompareTxtFiles <fichier1> <fichier2> <config.json> <dossierRapport>");
+        if (args.length < 3) {
+            System.out.println("Usage : java CompareTxtFiles <fichier1> <fichier2> <dossierRapport> [terminal]");
             return;
         }
 
         String fichier1 = args[0];
         String fichier2 = args[1];
-        String configPath = args[2];
-        String dossierRapport = args[3];
+        String dossierRapport = args[2];
+        boolean afficherTerminal = args.length > 3 && args[3].equalsIgnoreCase("terminal");
 
-        TxtConfigManager config = new TxtConfigManager(configPath);
+        // Charger configuration si elle existe
+        TxtConfigManager config = new TxtConfigManager("txt_config.json");
         List<Integer> keyIndexes = config.getKeyIndexes();
-        List<Integer> ignoredIndexes = config.getIgnoredIndexes();
+        Set<Integer> ignoredIndexes = config.getIgnoredIndexes();
 
-        List<String[]> refLines = readCsv(fichier1);
-        List<String[]> newLines = readCsv(fichier2);
+        List<String> lignesFichier1 = Files.readAllLines(Paths.get(fichier1));
+        List<String> lignesFichier2 = Files.readAllLines(Paths.get(fichier2));
 
-        Map<String, String> refMap = TxtComparator.listToMap(refLines, keyIndexes, ignoredIndexes);
-        Map<String, String> newMap = TxtComparator.listToMap(newLines, keyIndexes, ignoredIndexes);
+        String separator = detectSeparator(lignesFichier1);
 
-        String horodatage = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+        TxtComparator comparator = new TxtComparator(keyIndexes, ignoredIndexes);
+        List<String[]> ajout = new ArrayList<>();
+        List<String[]> suppression = new ArrayList<>();
+        List<String[]> modification = new ArrayList<>();
+        List<String[]> identique = new ArrayList<>();
+
+        comparator.comparer(lignesFichier1, lignesFichier2, separator, ajout, suppression, modification, identique);
+
+        LocalDateTime now = LocalDateTime.now();
+        String horodatage = now.format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+
         TxtReportGenerator generator = new TxtReportGenerator(dossierRapport, horodatage);
-        generator.genererRapportTexte(refMap, newMap);
-    }
+        generator.genererRapportTexte(ajout, suppression, modification, identique);
 
-    private static List<String[]> readCsv(String filePath) throws IOException {
-        List<String[]> rows = new ArrayList<>();
-        List<String> lines = Files.readAllLines(Paths.get(filePath));
-
-        String sep = detectSeparator(lines.get(0));
-        for (String line : lines) {
-            rows.add(line.split(Pattern.quote(sep), -1));
+        if (afficherTerminal) {
+            generator.afficherDansTerminal(ajout, suppression, modification, identique);
         }
-        return rows;
+
+        System.out.println("\n=== Résumé ===");
+        System.out.println("Clés utilisées : " + keyIndexes);
+        System.out.println("Colonnes ignorées : " + ignoredIndexes);
+        System.out.println("Fichier de référence : " + fichier1);
+        System.out.println("Nouveau fichier      : " + fichier2);
+        System.out.println("Rapport généré (.txt): " + generator.getTxtFilePath());
+        System.out.println("* Lignes identiques : " + identique.size());
+        System.out.println("* Lignes modifiées  : " + modification.size());
+        System.out.println("* Lignes ajoutées   : " + ajout.size());
+        System.out.println("* Lignes supprimées : " + suppression.size());
     }
 
-    private static String detectSeparator(String header) {
-        if (header.contains("|")) return "|";
-        if (header.contains(";")) return ";";
-        if (header.contains(",")) return ",";
-        return "\\s+"; // fallback
+    private static String detectSeparator(List<String> lignes) {
+        String[] candidats = {"|", ",", ";", "\t"};
+        for (String sep : candidats) {
+            if (lignes.get(0).contains(sep)) {
+                return sep;
+            }
+        }
+        return "|";
     }
 }
