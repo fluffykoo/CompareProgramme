@@ -9,6 +9,7 @@ public class ConfigurationManager {
     private String primaryKey;
     private String fallbackKey;
     private JsonObject subSectionKeys;
+    private JsonObject ignoredFields;
 
     public ConfigurationManager(String configFile) throws IOException {
         JsonObject config = JsonParser
@@ -19,6 +20,9 @@ public class ConfigurationManager {
                 ? config.get("fallback_key").getAsString()
                 : null;
         this.subSectionKeys = config.getAsJsonObject("subSectionKeys");
+        this.ignoredFields = config.has("ignored_fields") && config.get("ignored_fields").isJsonObject()
+            ? config.getAsJsonObject("ignored_fields")
+            : new JsonObject();
     }
 
     public String getPrimaryKey() { return primaryKey; }
@@ -44,5 +48,17 @@ public class ConfigurationManager {
         }
 
         return keys;
+    }
+
+    public List<String> getIgnoredFields(String section) {
+        if (ignoredFields.has(section)) {
+            JsonArray array = ignoredFields.getAsJsonArray(section);
+            List<String> fields = new ArrayList<>();
+            for (JsonElement elem : array) {
+                fields.add(elem.getAsString());
+            }
+            return fields;
+        }
+        return new ArrayList<>();
     }
 }
