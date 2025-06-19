@@ -8,6 +8,7 @@ import java.nio.file.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Arrays;
 
 public class TxtReportGenerator {
     private final boolean afficherDansTerminal;
@@ -43,7 +44,9 @@ public class TxtReportGenerator {
             long totalAjout = xlsxData.stream().filter(l -> "AJOUT".equals(l[0])).count();
             long totalSupp = xlsxData.stream().filter(l -> "DELETION".equals(l[0])).count();
             long totalModif = xlsxData.stream().filter(l -> "MODIFICATION".equals(l[0])).map(l -> l[1]).distinct().count();
-            long totalIdentique = rapportTexte.toString().lines().filter(l -> l.startsWith("[UNCHANGED]")).count();
+            long totalIdentique = Arrays.stream(rapportTexte.toString().split("\\R"))
+                                        .filter(l -> l.startsWith("[UNCHANGED]"))
+                                        .count();
 
             afficher("");
             afficher("=== Summary ===");
