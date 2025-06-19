@@ -1,45 +1,53 @@
 package com.mmd.txt;
 
-import java.io.IOException;
-import java.util.stream.Collectors;
+import java.io.*;
+import java.nio.file.*;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 
 public class CompareTxtFiles {
     public static void main(String[] args) throws IOException {
         if (args.length < 4) {
-            System.out.println("Usage: java CompareTxtFiles <referenceFile> <newFile> <keyColumnIndex> <reportFolder> [terminal]");
+            System.out.println("Usage: java CompareTxtFiles <fichier1> <fichier2> <config.json> <dossierRapport>");
             return;
         }
 
-        boolean afficherDansTerminal = args.length >= 5 && args[4].trim().replaceAll("\"", "").equalsIgnoreCase("terminal");
-
         String fichier1 = args[0];
         String fichier2 = args[1];
-        int indexCle = Integer.parseInt(args[2]) - 1;
+        String configPath = args[2];
         String dossierRapport = args[3];
 
-        TxtComparator comparator = new TxtComparator(afficherDansTerminal);
+        TxtConfigManager config = new TxtConfigManager(configPath);
+        List<Integer> keyIndexes = config.getKeyIndexes();
+        List<Integer> ignoredIndexes = config.getIgnoredIndexes();
 
-        comparator.runComparison(fichier1, fichier2, indexCle);
+        List<String[]> refLines = readCsv(fichier1);
+        List<String[]> newLines = readCsv(fichier2);
 
-        TxtReportGenerator generator = new TxtReportGenerator(afficherDansTerminal);
-        generator.generateReports(dossierRapport, comparator.getRapportTexte(), comparator.getXlsxData());
+        Map<String, String> refMap = TxtComparator.listToMap(refLines, keyIndexes, ignoredIndexes);
+        Map<String, String> newMap = TxtComparator.listToMap(newLines, keyIndexes, ignoredIndexes);
 
-        int totalAjout = comparator.getXlsxData().stream().filter(l -> "AJOUT".equals(l[0])).toArray().length;
-        int totalSupp = comparator.getXlsxData().stream().filter(l -> "DELETION".equals(l[0])).toArray().length;
-        int totalModif = comparator.getXlsxData().stream().filter(l -> "MODIFICATION".equals(l[0])).map(l -> l[1]).collect(Collectors.toSet()).size();
-        int totalIdentique = comparator.getTotalIdentique(); // méthode à ajouter
+        String horodatage = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+        TxtReportGenerator generator = new TxtReportGenerator(dossierRapport, horodatage);
+        generator.genererRapportTexte(refMap, newMap);
+    }
 
-        if (!afficherDansTerminal) {
-            System.out.println();
-            System.out.println("=== Summary ===");
-            System.out.println("Reference file : " + fichier1);
-            System.out.println("New file       : " + fichier2);
-            System.out.println("* Text (.txt) report generated   : " + generator.getTxtFilePath());
-            System.out.println("* Excel (.xlsx) report generated : " + generator.getXlsxFilePath());
-            System.out.println("* Identical rows : " + totalIdentique);
-            System.out.println("* Modified rows  : " + totalModif);
-            System.out.println("* Added rows     : " + totalAjout);
-            System.out.println("* Deleted rows   : " + totalSupp);
+    private static List<String[]> readCsv(String filePath) throws IOException {
+        List<String[]> rows = new ArrayList<>();
+        List<String> lines = Files.readAllLines(Paths.get(filePath));
+
+        String sep = detectSeparator(lines.get(0));
+        for (String line : lines) {
+            rows.add(line.split(Pattern.quote(sep), -1));
         }
+        return rows;
+    }
+
+    private static String detectSeparator(String header) {
+        if (header.contains("|")) return "|";
+        if (header.contains(";")) return ";";
+        if (header.contains(",")) return ",";
+        return "\\s+"; // fallback
     }
 }
