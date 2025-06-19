@@ -1,100 +1,89 @@
 package com.mmd.txt;
 
 import java.io.*;
-import java.nio.file.*;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class TxtComparator {
 
-    public static List<Difference> compareByKeyColumns(
-            List<String[]> file1,
-            List<String[]> file2,
-            List<Integer> keyColumns,
-            Set<Integer> ignoredColumns
-    ) {
+    public List<Difference> compareFiles(String file1, String file2, TxtConfigManager config) throws IOException {
+        List<String[]> lignes1 = lireFichier(file1);
+        List<String[]> lignes2 = lireFichier(file2);
+
+        Map<String, String[]> map1 = new HashMap<>();
+        Map<String, String[]> map2 = new HashMap<>();
+
+        for (String[] ligne : lignes1) {
+            String cle = construireCle(ligne, config.getKeyColumns());
+            map1.put(cle, ligne);
+        }
+
+        for (String[] ligne : lignes2) {
+            String cle = construireCle(ligne, config.getKeyColumns());
+            map2.put(cle, ligne);
+        }
+
         List<Difference> differences = new ArrayList<>();
 
-        Map<String, String[]> mapFile1 = indexByKey(file1, keyColumns);
-        Map<String, String[]> mapFile2 = indexByKey(file2, keyColumns);
-
-        Set<String> allKeys = new HashSet<>();
-        allKeys.addAll(mapFile1.keySet());
-        allKeys.addAll(mapFile2.keySet());
-
-        for (String key : allKeys) {
-            String[] row1 = mapFile1.get(key);
-            String[] row2 = mapFile2.get(key);
-
-            if (row1 != null && row2 != null) {
-                if (!Arrays.equals(filterIgnored(row1, ignoredColumns), filterIgnored(row2, ignoredColumns))) {
-                    differences.add(new Difference("MODIFIED", key, row1, row2));
-                } else {
-                    differences.add(new Difference("IDENTICAL", key, row1, row2));
-                }
-            } else if (row1 == null) {
-                differences.add(new Difference("ADDED", key, null, row2));
+        for (String cle : map1.keySet()) {
+            if (!map2.containsKey(cle)) {
+                differences.add(new Difference("SUPPRIME", cle, map1.get(cle), null));
             } else {
-                differences.add(new Difference("DELETED", key, row1, null));
+                String[] ligne1 = map1.get(cle);
+                String[] ligne2 = map2.get(cle);
+                if (!sontEgales(ligne1, ligne2, config.getIgnoredColumns())) {
+                    differences.add(new Difference("MODIFIE", cle, ligne1, ligne2));
+                }
             }
         }
+
+        for (String cle : map2.keySet()) {
+            if (!map1.containsKey(cle)) {
+                differences.add(new Difference("AJOUTE", cle, null, map2.get(cle)));
+            }
+        }
+
         return differences;
     }
 
-    private static Map<String, String[]> indexByKey(List<String[]> rows, List<Integer> keyColumns) {
-        Map<String, String[]> map = new HashMap<>();
-        for (String[] row : rows) {
-            if (row.length <= Collections.max(keyColumns)) continue;
-            String key = keyColumns.stream().map(i -> row[i]).collect(Collectors.joining("|"));
-            map.put(key, row);
-        }
-        return map;
-    }
-
-    private static String[] filterIgnored(String[] row, Set<Integer> ignoredColumns) {
-        List<String> result = new ArrayList<>();
-        for (int i = 0; i < row.length; i++) {
-            if (!ignoredColumns.contains(i)) {
-                result.add(row[i]);
+    private List<String[]> lireFichier(String chemin) throws IOException {
+        List<String[]> lignes = new ArrayList<>();
+        try (BufferedReader reader = new BufferedReader(new FileReader(chemin))) {
+            String ligne;
+            while ((ligne = reader.readLine()) != null) {
+                String separateur = detecterSeparateur(ligne);
+                lignes.add(ligne.split(separateur));
             }
         }
-        return result.toArray(new String[0]);
+        return lignes;
     }
 
-    public static List<String[]> readFile(String path, String separator) throws IOException {
-        List<String> lines = Files.readAllLines(Paths.get(path));
-        List<String[]> data = new ArrayList<>();
-        for (String line : lines) {
-            data.add(line.split(Pattern.quote(separator)));
-        }
-        return data;
-    }
-
-    public static String detectSeparator(String line) {
-        String[] possibleSeparators = {"|", ",", ";", "\t"};
-        int maxParts = 0;
-        String bestSeparator = "|";
-        for (String sep : possibleSeparators) {
-            int parts = line.split(Pattern.quote(sep)).length;
-            if (parts > maxParts) {
-                maxParts = parts;
-                bestSeparator = sep;
+    private String construireCle(String[] ligne, List<Integer> colonnes) {
+        StringBuilder cle = new StringBuilder();
+        for (int index : colonnes) {
+            if (index >= 0 && index < ligne.length) {
+                cle.append(ligne[index]).append("|");
             }
         }
-        return bestSeparator;
+        return cle.toString();
     }
 
-    public static class Difference {
-        public String type;
-        public String key;
-        public String[] row1;
-        public String[] row2;
+    private boolean sontEgales(String[] ligne1, String[] ligne2, List<Integer> colonnesIgnorees) {
+        int max = Math.max(ligne1.length, ligne2.length);
+        for (int i = 0; i < max; i++) {
+            if (colonnesIgnorees.contains(i)) continue;
 
-        public Difference(String type, String key, String[] row1, String[] row2) {
-            this.type = type;
-            this.key = key;
-            this.row1 = row1;
-            this.row2 = row2;
+            String val1 = i < ligne1.length ? ligne1[i] : "";
+            String val2 = i < ligne2.length ? ligne2[i] : "";
+
+            if (!val1.equals(val2)) return false;
         }
+        return true;
+    }
+
+    private String detecterSeparateur(String ligne) {
+        if (ligne.contains("|")) return "\\|";
+        if (ligne.contains(";")) return ";";
+        if (ligne.contains(",")) return ",";
+        return "\\s+";
     }
 }
