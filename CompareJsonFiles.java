@@ -27,6 +27,11 @@ public class CompareJsonFiles {
         gen.generateTextReport(diffs);
         gen.generateExcelReport(diffs);
 
+        System.out.println("\nIgnored fields:");
+        comp.getConfig().getIgnoredFields().forEach((section, fields) -> {
+            System.out.println("  - " + section + " : " + String.join(", ", fields));
+        });
+
         displaySummary(diffs, comp.indexEntities(
             JsonParser.parseReader(new FileReader(refFile))
                      .getAsJsonArray()),
