@@ -217,7 +217,7 @@ public class JsonComparator {
         allKeys.addAll(mapRef.keySet());
         allKeys.addAll(mapNouv.keySet());
 
-        Map<String, List<String>> ignoredFields = config.getIgnoredFields();
+        List<String> ignored =  config.getIgnoredFields(section);
 
         for (String key : allKeys) {
             JsonObject objRef = mapRef.get(key);
@@ -232,7 +232,7 @@ public class JsonComparator {
                 fields.addAll(objRef.keySet());
                 fields.addAll(objNouv.keySet());
 
-                List<String> ignored = ignoredFields.getOrDefault(section, Collections.emptyList());
+
 
                 for (String field : fields) {
                     if (ignored.contains(field)) continue;
@@ -257,7 +257,10 @@ public class JsonComparator {
 
     private String generateCompositeKey(JsonObject obj, List<String> keys) {
         return keys.stream()
-            .map(k -> obj.has(k) && !obj.get(k).isJsonNull() ? obj.get(k).getAsString() : "")
-            .collect(Collectors.joining("|"));
+                .map(k -> obj.has(k) && !obj.get(k).isJsonNull() ? obj.get(k).getAsString() : "")
+                .collect(Collectors.joining("|"));
+    }
+    public ConfigurationManager getConfig() {
+        return this.config;
     }
 }
