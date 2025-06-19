@@ -116,6 +116,11 @@ public class JsonComparator {
             }
             // Champ simple ou section classique
             else {
+                Map<String, List<String>> ignoredFields = config.getIgnoredFields();
+                if (ignoredFields.containsKey(key)) {
+                    List<String> ignoredKeys = ignoredFields.get(key);
+                    if (ignoredKeys.contains(key)) continue;
+                }
                 if (refVal == null && novVal != null) {
                     differences.add(new Difference(entityId, ChangeType.ADDITION, key, key, null, novVal.toString()));
                 } else if (refVal != null && novVal == null) {
@@ -151,7 +156,12 @@ public class JsonComparator {
         allKeys.addAll(ref.keySet());
         allKeys.addAll(nov.keySet());
 
+        Map<String, List<String>> ignoredFields = config.getIgnoredFields();
+        List<String> ignored = ignoredFields.getOrDefault(section, Collections.emptyList());
+
         for (String key : allKeys) {
+            if (ignored.contains(key)) continue;
+
             JsonElement refVal = ref.get(key);
             JsonElement novVal = nov.get(key);
 
@@ -211,6 +221,8 @@ public class JsonComparator {
         allKeys.addAll(mapRef.keySet());
         allKeys.addAll(mapNouv.keySet());
 
+        Map<String, List<String>> ignoredFields = config.getIgnoredFields();
+
         for (String key : allKeys) {
             JsonObject objRef = mapRef.get(key);
             JsonObject objNouv = mapNouv.get(key);
@@ -224,7 +236,11 @@ public class JsonComparator {
                 fields.addAll(objRef.keySet());
                 fields.addAll(objNouv.keySet());
 
+                List<String> ignored = ignoredFields.getOrDefault(section, Collections.emptyList());
+
                 for (String field : fields) {
+                    if (ignored.contains(field)) continue;
+
                     JsonElement val1 = objRef.get(field);
                     JsonElement val2 = objNouv.get(field);
 
