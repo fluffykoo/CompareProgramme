@@ -11,6 +11,8 @@ import java.util.List;
 
 public class TxtReportGenerator {
     private final boolean afficherDansTerminal;
+    private String txtFilePath;
+    private String xlsxFilePath;
 
     public TxtReportGenerator(boolean afficherDansTerminal) {
         this.afficherDansTerminal = afficherDansTerminal;
@@ -25,6 +27,7 @@ public class TxtReportGenerator {
         Files.createDirectories(Paths.get(dossierRapport));
 
         String txtPath = Paths.get(dossierRapport, "rapportTXT_" + horodatage + ".txt").toString();
+        txtFilePath = txtPath;
         Files.write(Paths.get(txtPath), rapportTexte.toString().getBytes());
 
         afficher("* Text (.txt) report saved to : " + txtPath);
@@ -56,6 +59,7 @@ public class TxtReportGenerator {
     private void exportToXlsx(String dossierRapport, String horodatage, List<String[]> xlsxData) throws IOException {
         String nomFichier = "rapportTXT_" + horodatage + ".xlsx";
         Path cheminFichier = Paths.get(dossierRapport, nomFichier);
+        xlsxFilePath = cheminFichier.toString();
 
         Workbook workbook = new XSSFWorkbook();
         Sheet sheet = workbook.createSheet("Differences");
@@ -114,5 +118,13 @@ public class TxtReportGenerator {
 
         afficher("* .xlsx report generated in " + dossierRapport + " : " + nomFichier);
         afficher("* Excel (.xlsx) report generated : " + cheminFichier);
+    }
+
+    public String getTxtFilePath() {
+        return txtFilePath;
+    }
+
+    public String getXlsxFilePath() {
+        return xlsxFilePath;
     }
 }
