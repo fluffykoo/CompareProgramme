@@ -4,7 +4,6 @@ import java.io.*;
 import java.time.*;
 import java.time.format.*;
 import java.util.*;
-import java.util.stream.Collectors;
 import com.mmd.json.ConfigurationManager;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonElement;
@@ -35,7 +34,7 @@ public class CompareJsonFiles {
 
         System.out.println("\nIgnored fields:");
         comp.getConfig().getIgnoredFields().forEach((section, fields) -> {
-            System.out.println("  - " + section + " : " + String.join(", ", fields));
+            System.out.println("  - " + section + " : " + fields.toString());
         });
 
         displaySummary(diffs, comp.indexEntities(
