@@ -153,8 +153,7 @@ public class JsonComparator {
         allKeys.addAll(ref.keySet());
         allKeys.addAll(nov.keySet());
 
-        Map<String, List<String>> ignoredFields = config.getIgnoredFields();
-        List<String> ignored = ignoredFields.getOrDefault(section, Collections.emptyList());
+        List<String> ignored = config.getIgnoredFields(section);
 
         for (String key : allKeys) {
             if (ignored.contains(key)) continue;
