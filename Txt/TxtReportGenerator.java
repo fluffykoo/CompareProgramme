@@ -17,16 +17,11 @@ public class TxtReportGenerator {
                                 List<String[]> modification, List<String[]> identique) throws IOException {
         txtFilePath = dossier + File.separator + "rapport_" + horodatage + ".txt";
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(txtFilePath))) {
-            writer.write("=== Résumé ===
-");
-            writer.write("Ajouts : " + ajout.size() + "
-");
-            writer.write("Suppressions : " + suppression.size() + "
-");
-            writer.write("Modifications : " + modification.size() + "
-");
-            writer.write("Identiques : " + identique.size() + "
-");
+            writer.write("=== Résumé ===" + System.lineSeparator());
+            writer.write("Ajouts : " + ajout.size() + System.lineSeparator());
+            writer.write("Suppressions : " + suppression.size() + System.lineSeparator());
+            writer.write("Modifications : " + modification.size() + System.lineSeparator());
+            writer.write("Identiques : " + identique.size() + System.lineSeparator());
         }
     }
 
