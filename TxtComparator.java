@@ -9,6 +9,7 @@ public class TxtComparator {
     private final boolean afficherDansTerminal;
     private final StringBuilder rapportTexte = new StringBuilder();
     private final List<String[]> xlsxData = new ArrayList<>();
+    private int totalIdentique = 0;
 
     public TxtComparator(boolean afficherDansTerminal) {
         this.afficherDansTerminal = afficherDansTerminal;
@@ -20,6 +21,10 @@ public class TxtComparator {
 
     public List<String[]> getXlsxData() {
         return xlsxData;
+    }
+
+    public int getTotalIdentique() {
+        return totalIdentique;
     }
 
     private void afficher(String ligne) {
@@ -44,8 +49,6 @@ public class TxtComparator {
         toutesLesCles.addAll(mapRef.keySet());
         toutesLesCles.addAll(mapNouv.keySet());
 
-        int totalIdentique = 0, totalModif = 0, totalAjout = 0, totalSupp = 0;
-
         for (String cle : toutesLesCles) {
             String ancienne = mapRef.get(cle);
             String nouvelle = mapNouv.get(cle);
@@ -54,12 +57,10 @@ public class TxtComparator {
                 xlsxData.add(new String[]{"AJOUT", cle, "", "", nouvelle});
                 afficher("[ADD] Key = " + cle);
                 afficher("  New : " + nouvelle);
-                totalAjout++;
             } else if (nouvelle == null) {
                 xlsxData.add(new String[]{"DELETION", cle, "", ancienne, ""});
                 afficher("[DELETE] Key = " + cle);
                 afficher("  Old : " + ancienne);
-                totalSupp++;
             } else if (!ancienne.equals(nouvelle)) {
                 afficher("[MODIFIED] Key = " + cle);
                 List<String[]> differences = comparerColonnes(ancienne, nouvelle, "\\|", nomsColonnes, cle);
@@ -69,7 +70,6 @@ public class TxtComparator {
                     afficher("    New  : " + ligne[4]);
                 }
                 xlsxData.addAll(differences);
-                totalModif++;
             } else {
                 totalIdentique++;
             }
@@ -77,10 +77,13 @@ public class TxtComparator {
 
         afficher("");
         afficher("=== Summary ===");
-        afficher("* Identical rows  : " + totalIdentique);
-        afficher("* Modified rows   : " + totalModif);
-        afficher("* Added rows      : " + totalAjout);
-        afficher("* Deleted rows    : " + totalSupp);
+        afficher("Reference file : " + fichier1);
+        afficher("New file       : " + fichier2);
+        afficher("Total keys     : " + toutesLesCles.size());
+        afficher("* Identical rows : " + totalIdentique);
+        afficher("* Modified rows  : " + (int) xlsxData.stream().filter(l -> "MODIFICATION".equals(l[0])).map(l -> l[1]).distinct().count());
+        afficher("* Added rows     : " + (int) xlsxData.stream().filter(l -> "AJOUT".equals(l[0])).count());
+        afficher("* Deleted rows   : " + (int) xlsxData.stream().filter(l -> "DELETION".equals(l[0])).count());
     }
 
     private Map<String, String> toMap(List<String> lignes, int indexCle) {
