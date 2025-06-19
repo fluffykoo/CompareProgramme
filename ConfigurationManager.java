@@ -4,6 +4,8 @@ import com.google.gson.*;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 
 public class ConfigurationManager {
     private String primaryKey;
@@ -21,8 +23,8 @@ public class ConfigurationManager {
                 : null;
         this.subSectionKeys = config.getAsJsonObject("subSectionKeys");
         this.ignoredFields = config.has("ignored_fields") && config.get("ignored_fields").isJsonObject()
-            ? config.getAsJsonObject("ignored_fields")
-            : new JsonObject();
+                ? config.getAsJsonObject("ignored_fields")
+                : new JsonObject();
     }
 
     public String getPrimaryKey() { return primaryKey; }
@@ -60,5 +62,17 @@ public class ConfigurationManager {
             return fields;
         }
         return new ArrayList<>();
+    }
+
+    public java.util.Map<String, List<String>> getIgnoredFields() {
+        java.util.Map<String, List<String>> result = new java.util.HashMap<>();
+        for (java.util.Map.Entry<String, JsonElement> entry : ignoredFields.entrySet()) {
+            List<String> fields = new ArrayList<>();
+            for (JsonElement elem : entry.getValue().getAsJsonArray()) {
+                fields.add(elem.getAsString());
+            }
+            result.put(entry.getKey(), fields);
+        }
+        return result;
     }
 }
