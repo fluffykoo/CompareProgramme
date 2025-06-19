@@ -26,7 +26,29 @@ public class TxtReportGenerator {
 
         String txtPath = Paths.get(dossierRapport, "rapportTXT_" + horodatage + ".txt").toString();
         Files.write(Paths.get(txtPath), rapportTexte.toString().getBytes());
-        afficher("* .txt report saved to : " + txtPath);
+
+        afficher("* Text (.txt) report saved to : " + txtPath);
+
+        if (afficherDansTerminal) {
+            afficher("\n=== Full Text Report ===");
+            for (String ligne : rapportTexte.toString().split("\n")) {
+                System.out.println(ligne);
+            }
+            afficher("");
+            afficher("* Text (.txt) report generated : " + txtPath);
+        } else {
+            long totalAjout = xlsxData.stream().filter(l -> "AJOUT".equals(l[0])).count();
+            long totalSupp = xlsxData.stream().filter(l -> "DELETION".equals(l[0])).count();
+            long totalModif = xlsxData.stream().filter(l -> "MODIFICATION".equals(l[0])).map(l -> l[1]).distinct().count();
+            long totalIdentique = rapportTexte.toString().lines().filter(l -> l.startsWith("[UNCHANGED]")).count();
+
+            afficher("");
+            afficher("=== Summary ===");
+            afficher("* Identical rows     : " + totalIdentique);
+            afficher("* Modified rows      : " + totalModif);
+            afficher("* Added rows         : " + totalAjout);
+            afficher("* Deleted rows       : " + totalSupp);
+        }
 
         exportToXlsx(dossierRapport, horodatage, xlsxData);
     }
@@ -91,5 +113,6 @@ public class TxtReportGenerator {
         workbook.close();
 
         afficher("* .xlsx report generated in " + dossierRapport + " : " + nomFichier);
+        afficher("* Excel (.xlsx) report generated : " + cheminFichier);
     }
 }
