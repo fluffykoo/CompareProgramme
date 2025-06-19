@@ -12,10 +12,10 @@ public class TxtComparator {
 
     public static String detectSeparator(String path) throws IOException {
         String line = Files.readAllLines(Paths.get(path)).get(0);
-        if (line.contains("|")) return "\|";
+        if (line.contains("|")) return "\\|";
         if (line.contains(";")) return ";";
         if (line.contains(",")) return ",";
-        return "\s+";
+        return "\\s+"; // fallback
     }
 
     public TxtComparator() {}
@@ -50,7 +50,7 @@ public class TxtComparator {
     private Map<String, String[]> toMap(List<String> lignes, List<Integer> keyIndexes, Set<Integer> ignoredIndexes) {
         Map<String, String[]> map = new HashMap<>();
         for (String ligne : lignes) {
-            String[] parts = ligne.split("\|", -1);
+            String[] parts = ligne.split("\\|", -1);
             StringBuilder key = new StringBuilder();
             for (int index : keyIndexes) {
                 if (index < parts.length) key.append(parts[index]).append("|");
