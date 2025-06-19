@@ -4,13 +4,19 @@ import java.io.*;
 import java.time.*;
 import java.time.format.*;
 import java.util.*;
+import java.util.stream.Collectors;
+import com.mmd.json.ConfigurationManager;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonParser;
 
 public class CompareJsonFiles {
     public static void main(String[] args) throws Exception {
         if (args.length != 4) {
             System.out.println(
-              "Usage: java CompareJsonFiles <refFile> <newFile> "
-            + "<outputFolder> <configFile>");
+                    "Usage: java CompareJsonFiles <refFile> <newFile> "
+                            + "<outputFolder> <configFile>");
             return;
         }
         String refFile   = args[0];
@@ -22,7 +28,7 @@ public class CompareJsonFiles {
         List<Difference> diffs = comp.compare(refFile, newFile);
 
         String ts = LocalDateTime.now()
-            .format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+                .format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
         ReportGenerator gen = new ReportGenerator(outFolder, ts);
         gen.generateTextReport(diffs);
         gen.generateExcelReport(diffs);
@@ -33,11 +39,11 @@ public class CompareJsonFiles {
         });
 
         displaySummary(diffs, comp.indexEntities(
-            JsonParser.parseReader(new FileReader(refFile))
-                     .getAsJsonArray()),
-                       comp.indexEntities(
-            JsonParser.parseReader(new FileReader(newFile))
-                     .getAsJsonArray()));
+                        JsonParser.parseReader(new FileReader(refFile))
+                                .getAsJsonArray()),
+                comp.indexEntities(
+                        JsonParser.parseReader(new FileReader(newFile))
+                                .getAsJsonArray()));
     }
 
     private static void displaySummary(List<Difference> diffs,
@@ -50,8 +56,8 @@ public class CompareJsonFiles {
         for (String id : refMap.keySet()) {
             if (!newMap.containsKey(id)) deleted++;
             else if (diffs.stream()
-                  .noneMatch(d -> d.getEntityId().equals(id)
-                              && d.getType() == ChangeType.MODIFICATION)) {
+                    .noneMatch(d -> d.getEntityId().equals(id)
+                            && d.getType() == ChangeType.MODIFICATION)) {
                 isoCount++;
             }
         }
