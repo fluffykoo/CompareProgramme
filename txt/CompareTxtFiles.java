@@ -5,13 +5,14 @@ import java.io.IOException;
 public class CompareTxtFiles {
     public static void main(String[] args) throws IOException {
         if (args.length < 4) {
-            System.out.println("Usage : java CompareTxtFiles <fichier1> <fichier2> <indexCol> <dossierRapport> [terminal]");
+            System.out.println("Usage : java CompareTxtFiles <fichier1> <fichier2> <config.json> <dossierRapport> [terminal]");
             return;
         }
 
         String fichier1 = args[0];
         String fichier2 = args[1];
-        int indexCol = Integer.parseInt(args[2]) - 1;
+        String cheminConfig = args[2];
+        int indexCol = TxtSimpleConfigReader.getIndexColFromConfig(cheminConfig);
         String dossierRapport = args[3];
         boolean afficherTerminal = args.length >= 5 && args[4].equalsIgnoreCase("terminal");
 
