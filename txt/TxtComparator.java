@@ -36,7 +36,7 @@ public class TxtComparator {
         List<String> lignesFichier1 = Files.readAllLines(Paths.get(fichier1));
         List<String> lignesFichier2 = Files.readAllLines(Paths.get(fichier2));
 
-        String ligneEntete = lignesFichier1.get(1);  // ligne 2 = index 1
+        String ligneEntete = lignesFichier1.get(1);
         String[] nomsColonnes = ligneEntete.split("\\|");
 
         List<String> donneesRef = lignesFichier1.stream().skip(2).filter(l -> !l.trim().isEmpty()).collect(Collectors.toList());
@@ -77,10 +77,13 @@ public class TxtComparator {
 
         afficher("");
         afficher("=== Summary ===");
+        afficher("Reference file : " + fichier1);
+        afficher("New file       : " + fichier2);
+        afficher("Total keys     : " + toutesLesCles.size());
         afficher("* Identical rows : " + totalIdentique);
-        afficher("* Modified rows  : " + xlsxData.stream().filter(l -> "MODIFICATION".equals(l[0])).map(l -> l[1]).distinct().count());
-        afficher("* Added rows     : " + xlsxData.stream().filter(l -> "AJOUT".equals(l[0])).count());
-        afficher("* Deleted rows   : " + xlsxData.stream().filter(l -> "DELETION".equals(l[0])).count());
+        afficher("* Modified rows  : " + (int) xlsxData.stream().filter(l -> "MODIFICATION".equals(l[0])).map(l -> l[1]).distinct().count());
+        afficher("* Added rows     : " + (int) xlsxData.stream().filter(l -> "AJOUT".equals(l[0])).count());
+        afficher("* Deleted rows   : " + (int) xlsxData.stream().filter(l -> "DELETION".equals(l[0])).count());
     }
 
     private Map<String, String> toMap(List<String> lignes, int indexCle) {
