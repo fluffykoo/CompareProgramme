@@ -1,24 +1,32 @@
 package com.mmd.txt;
 
 import java.io.IOException;
+import java.util.Set;
 
 public class CompareTxtFiles {
     public static void main(String[] args) throws IOException {
         if (args.length < 4) {
-            System.out.println("Usage : java CompareTxtFiles <fichier1> <fichier2> <config.json> <dossierRapport> [terminal]");
+            System.out.println("Usage : java CompareTxtFiles <fichier1> <fichier2> <configPath> <dossierRapport> [terminal]");
             return;
         }
 
         String fichier1 = args[0];
         String fichier2 = args[1];
-        String cheminConfig = args[2];
-        int indexCol = TxtSimpleConfigReader.getIndexColFromConfig(cheminConfig);
+        String configPath = args[2];
         String dossierRapport = args[3];
         boolean afficherTerminal = args.length >= 5 && args[4].equalsIgnoreCase("terminal");
 
-        TxtComparator comparator = new TxtComparator(afficherTerminal);
-        comparator.runComparison(fichier1, fichier2, indexCol);
+        // Lire la config JSON
+        TxtSimpleConfigReader config = new TxtSimpleConfigReader(configPath);
+        int indexCol = config.getIndexCol();
+        Set<Integer> colonnesIgnorees = config.getColonnesIgnorees();
+        String separator = config.getSeparator();
 
+        // Comparaison
+        TxtComparator comparator = new TxtComparator(afficherTerminal);
+        comparator.runComparison(fichier1, fichier2, indexCol, colonnesIgnorees, separator);
+
+        // Génération des rapports
         TxtReportGenerator generator = new TxtReportGenerator(afficherTerminal);
         generator.generateReports(dossierRapport, comparator.getRapportTexte(), comparator.getXlsxData());
 
