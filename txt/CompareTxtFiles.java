@@ -1,6 +1,7 @@
 package com.mmd.txt;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Set;
 
 public class CompareTxtFiles {
@@ -18,13 +19,13 @@ public class CompareTxtFiles {
 
         // Lire la config JSON
         TxtSimpleConfigReader config = new TxtSimpleConfigReader(configPath);
-        int indexCol = config.getIndexCol();
+        List<Integer> indexCols = config.getIndexCols(); //composite keys
         Set<Integer> colonnesIgnorees = config.getColonnesIgnorees();
         String separator = config.getSeparator();
 
         // Comparaison
-        TxtComparator comparator = new TxtComparator(afficherTerminal);
-        comparator.runComparison(fichier1, fichier2, indexCol, colonnesIgnorees, separator);
+        TxtComparator comparator = new TxtComparator(afficherTerminal, separator);
+        comparator.runComparison(fichier1, fichier2, indexCols, colonnesIgnorees); 
 
         // Génération des rapports
         TxtReportGenerator generator = new TxtReportGenerator(afficherTerminal);
@@ -42,6 +43,7 @@ public class CompareTxtFiles {
             System.out.println("New file             : " + fichier2);
             System.out.println("* Text (.txt) report generated   : " + generator.getTxtFilePath());
             System.out.println("* Excel (.xlsx) report generated : " + generator.getXlsxFilePath());
+            System.out.println("* CSV (.csv) report generated   : " + generator.getCsvFilePath());
             System.out.println("* Identical rows     : " + identique);
             System.out.println("* Modified rows      : " + modification);
             System.out.println("* Added rows         : " + ajout);
