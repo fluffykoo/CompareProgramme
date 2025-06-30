@@ -7,6 +7,7 @@ import java.io.*;
 import java.nio.file.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 
 public class TxtReportGenerator {
@@ -34,7 +35,9 @@ public class TxtReportGenerator {
 
         if (afficherDansTerminal) {
             afficher("\n=== Full Text Report ===");
-            for (String ligne : rapportTexte.toString().split("\n")) {
+            BufferedReader reader = new BufferedReader(new StringReader(rapportTexte.toString()));
+            String ligne;
+            while ((ligne = reader.readLine()) != null) {
                 System.out.println(ligne);
             }
             afficher("");
@@ -43,7 +46,16 @@ public class TxtReportGenerator {
             long totalAjout = xlsxData.stream().filter(l -> "AJOUT".equals(l[0])).count();
             long totalSupp = xlsxData.stream().filter(l -> "DELETION".equals(l[0])).count();
             long totalModif = xlsxData.stream().filter(l -> "MODIFICATION".equals(l[0])).map(l -> l[1]).distinct().count();
-            long totalIdentique = rapportTexte.toString().lines().filter(l -> l.startsWith("[UNCHANGED]")).count();
+
+            // Remplace rapportTexte.lines() par lecture manuelle ligne par ligne :
+            long totalIdentique = 0;
+            BufferedReader reader = new BufferedReader(new StringReader(rapportTexte.toString()));
+            String ligne;
+            while ((ligne = reader.readLine()) != null) {
+                if (ligne.startsWith("[UNCHANGED]")) {
+                    totalIdentique++;
+                }
+            }
 
             afficher("");
             afficher("=== Summary ===");
