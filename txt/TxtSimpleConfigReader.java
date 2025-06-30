@@ -1,3 +1,4 @@
+// TxtSimpleConfigReader.java
 package com.mmd.txt;
 
 import com.google.gson.*;
@@ -5,7 +6,7 @@ import java.io.*;
 import java.util.*;
 
 public class TxtSimpleConfigReader {
-    private int indexCol;
+    private List<Integer> indexCols;
     private Set<Integer> colonnesIgnorees;
     private String separator;
 
@@ -14,14 +15,19 @@ public class TxtSimpleConfigReader {
             Gson gson = new Gson();
             Map<String, Object> config = gson.fromJson(reader, Map.class);
 
-            // Lecture de l'index de clé
-            if (config.containsKey("indexCol")) {
-                this.indexCol = ((Double) config.get("indexCol")).intValue() - 1;
+            Object indexColObj = config.get("indexCol");
+            this.indexCols = new ArrayList<>();
+            if (indexColObj instanceof Double) {
+                indexCols.add(((Double) indexColObj).intValue() - 1);
+            } else if (indexColObj instanceof List) {
+                List<Double> indices = (List<Double>) indexColObj;
+                for (Double d : indices) {
+                    indexCols.add(d.intValue() - 1);
+                }
             } else {
-                throw new IllegalArgumentException("Le champ 'indexCol' est manquant dans le fichier config.");
+                throw new IllegalArgumentException("'indexCol' must be an integer or list of integers.");
             }
 
-            // Lecture des colonnes à ignorer
             this.colonnesIgnorees = new HashSet<>();
             if (config.containsKey("ignoreColumns")) {
                 List<Double> rawList = (List<Double>) config.get("ignoreColumns");
@@ -30,17 +36,12 @@ public class TxtSimpleConfigReader {
                 }
             }
 
-            // Lecture du séparateur (par défaut "|")
-            if (config.containsKey("separator")) {
-                this.separator = config.get("separator").toString();
-            } else {
-                this.separator = "|"; // valeur par défaut
-            }
+            this.separator = config.containsKey("separator") ? config.get("separator").toString() : "|";
         }
     }
 
-    public int getIndexCol() {
-        return indexCol;
+    public List<Integer> getIndexCols() {
+        return indexCols;
     }
 
     public Set<Integer> getColonnesIgnorees() {
