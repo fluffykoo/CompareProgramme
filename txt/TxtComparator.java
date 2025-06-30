@@ -10,9 +10,11 @@ public class TxtComparator {
     private final StringBuilder rapportTexte = new StringBuilder();
     private final List<String[]> xlsxData = new ArrayList<>();
     private int totalIdentique = 0;
+    private final String delimiteur;
 
-    public TxtComparator(boolean afficherDansTerminal) {
+    public TxtComparator(boolean afficherDansTerminal, String delimiteur) {
         this.afficherDansTerminal = afficherDansTerminal;
+        this.delimiteur = delimiteur;
     }
 
     public StringBuilder getRapportTexte() {
@@ -32,12 +34,12 @@ public class TxtComparator {
         rapportTexte.append(ligne).append("\n");
     }
 
-    public void runComparison(String fichier1, String fichier2, int indexCle) throws IOException {
+    public void runComparison(String fichier1, String fichier2, int indexCle, Set<Integer> colonnesIgnorees) throws IOException {
         List<String> lignesFichier1 = Files.readAllLines(Paths.get(fichier1));
         List<String> lignesFichier2 = Files.readAllLines(Paths.get(fichier2));
 
         String ligneEntete = lignesFichier1.get(1);
-        String[] nomsColonnes = ligneEntete.split("\\|");
+        String[] nomsColonnes = ligneEntete.split(Pattern.quote(delimiteur));
 
         List<String> donneesRef = lignesFichier1.stream().skip(2).filter(l -> !l.trim().isEmpty()).collect(Collectors.toList());
         List<String> donneesNouv = lignesFichier2.stream().skip(2).filter(l -> !l.trim().isEmpty()).collect(Collectors.toList());
@@ -63,7 +65,7 @@ public class TxtComparator {
                 afficher("  Old : " + ancienne);
             } else if (!ancienne.equals(nouvelle)) {
                 afficher("[MODIFIED] Key = " + cle);
-                List<String[]> differences = comparerColonnes(ancienne, nouvelle, "\\|", nomsColonnes, cle);
+                List<String[]> differences = comparerColonnes(ancienne, nouvelle, nomsColonnes, cle, colonnesIgnorees);
                 for (String[] ligne : differences) {
                     afficher("  * " + ligne[2] + " :");
                     afficher("    Old  : " + ligne[3]);
@@ -88,17 +90,19 @@ public class TxtComparator {
 
     private Map<String, String> toMap(List<String> lignes, int indexCle) {
         return lignes.stream()
-                .map(l -> l.split("\\|", -1))
+                .map(l -> l.split(Pattern.quote(delimiteur), -1))
                 .filter(cols -> cols.length > indexCle)
-                .collect(Collectors.toMap(cols -> cols[indexCle].trim(), l -> String.join("|", l), (a, b) -> a, LinkedHashMap::new));
+                .collect(Collectors.toMap(cols -> cols[indexCle].trim(), l -> String.join(delimiteur, l), (a, b) -> a, LinkedHashMap::new));
     }
 
-    private List<String[]> comparerColonnes(String ancienne, String nouvelle, String delim, String[] noms, String cle) {
-        String[] oldCols = ancienne.split(delim, -1);
-        String[] newCols = nouvelle.split(delim, -1);
+    private List<String[]> comparerColonnes(String ancienne, String nouvelle, String[] noms, String cle, Set<Integer> colonnesIgnorees) {
+        String[] oldCols = ancienne.split(Pattern.quote(delimiteur), -1);
+        String[] newCols = nouvelle.split(Pattern.quote(delimiteur), -1);
         List<String[]> lignes = new ArrayList<>();
 
         for (int i = 0; i < Math.max(oldCols.length, newCols.length); i++) {
+            if (colonnesIgnorees.contains(i)) continue;
+
             String v1 = i < oldCols.length ? oldCols[i].trim() : "";
             String v2 = i < newCols.length ? newCols[i].trim() : "";
 
@@ -107,6 +111,7 @@ public class TxtComparator {
                 lignes.add(new String[]{"MODIFICATION", cle, nom, v1, v2});
             }
         }
+
         return lignes;
     }
 }
