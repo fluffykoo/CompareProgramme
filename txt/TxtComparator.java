@@ -3,6 +3,7 @@ package com.mmd.txt;
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class TxtComparator {
@@ -34,7 +35,7 @@ public class TxtComparator {
         rapportTexte.append(ligne).append("\n");
     }
 
-    public void runComparison(String fichier1, String fichier2, int indexCle, Set<Integer> colonnesIgnorees) throws IOException {
+    public void runComparison(String fichier1, String fichier2, List<Integer> indexCles, Set<Integer> colonnesIgnorees) throws IOException {
         List<String> lignesFichier1 = Files.readAllLines(Paths.get(fichier1));
         List<String> lignesFichier2 = Files.readAllLines(Paths.get(fichier2));
 
@@ -44,8 +45,8 @@ public class TxtComparator {
         List<String> donneesRef = lignesFichier1.stream().skip(2).filter(l -> !l.trim().isEmpty()).collect(Collectors.toList());
         List<String> donneesNouv = lignesFichier2.stream().skip(2).filter(l -> !l.trim().isEmpty()).collect(Collectors.toList());
 
-        Map<String, String> mapRef = toMap(donneesRef, indexCle);
-        Map<String, String> mapNouv = toMap(donneesNouv, indexCle);
+        Map<String, String> mapRef = toMap(donneesRef, indexCles);
+        Map<String, String> mapNouv = toMap(donneesNouv, indexCles);
 
         Set<String> toutesLesCles = new HashSet<>();
         toutesLesCles.addAll(mapRef.keySet());
@@ -88,11 +89,15 @@ public class TxtComparator {
         afficher("* Deleted rows   : " + (int) xlsxData.stream().filter(l -> "DELETION".equals(l[0])).count());
     }
 
-    private Map<String, String> toMap(List<String> lignes, int indexCle) {
+    private Map<String, String> toMap(List<String> lignes, List<Integer> indexCles) {
         return lignes.stream()
                 .map(l -> l.split(Pattern.quote(delimiteur), -1))
-                .filter(cols -> cols.length > indexCle)
-                .collect(Collectors.toMap(cols -> cols[indexCle].trim(), l -> String.join(delimiteur, l), (a, b) -> a, LinkedHashMap::new));
+                .filter(cols -> indexCles.stream().allMatch(i -> i < cols.length))
+                .collect(Collectors.toMap(
+                        cols -> indexCles.stream().map(i -> cols[i].trim()).collect(Collectors.joining("|")),
+                        l -> String.join(delimiteur, l),
+                        (a, b) -> a,
+                        LinkedHashMap::new));
     }
 
     private List<String[]> comparerColonnes(String ancienne, String nouvelle, String[] noms, String cle, Set<Integer> colonnesIgnorees) {
