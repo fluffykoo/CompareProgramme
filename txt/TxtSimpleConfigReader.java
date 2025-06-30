@@ -7,19 +7,21 @@ import java.util.*;
 public class TxtSimpleConfigReader {
     private int indexCol;
     private Set<Integer> colonnesIgnorees;
-    private String delimiter;
+    private String separator;
 
     public TxtSimpleConfigReader(String cheminConfig) throws IOException {
         try (FileReader reader = new FileReader(cheminConfig)) {
             Gson gson = new Gson();
             Map<String, Object> config = gson.fromJson(reader, Map.class);
 
+            // Lecture de l'index de clé
             if (config.containsKey("indexCol")) {
                 this.indexCol = ((Double) config.get("indexCol")).intValue() - 1;
             } else {
-                throw new IllegalArgumentException("Missing 'indexCol' in config file.");
+                throw new IllegalArgumentException("Le champ 'indexCol' est manquant dans le fichier config.");
             }
 
+            // Lecture des colonnes à ignorer
             this.colonnesIgnorees = new HashSet<>();
             if (config.containsKey("ignoreColumns")) {
                 List<Double> rawList = (List<Double>) config.get("ignoreColumns");
@@ -28,7 +30,12 @@ public class TxtSimpleConfigReader {
                 }
             }
 
-            this.delimiter = config.containsKey("delimiter") ? config.get("delimiter").toString() : "|";
+            // Lecture du séparateur (par défaut "|")
+            if (config.containsKey("separator")) {
+                this.separator = config.get("separator").toString();
+            } else {
+                this.separator = "|"; // valeur par défaut
+            }
         }
     }
 
@@ -40,7 +47,7 @@ public class TxtSimpleConfigReader {
         return colonnesIgnorees;
     }
 
-    public String getDelimiter() {
-        return delimiter;
+    public String getSeparator() {
+        return separator;
     }
 }
