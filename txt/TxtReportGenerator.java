@@ -41,10 +41,21 @@ public class TxtReportGenerator {
             afficher("");
             afficher("* Text (.txt) report generated : " + txtPath);
         } else {
-            long totalAjout = xlsxData.stream().filter(l -> "AJOUT".equals(l[0])).count();
-            long totalSupp = xlsxData.stream().filter(l -> "DELETION".equals(l[0])).count();
-            long totalModif = xlsxData.stream().filter(l -> "MODIFICATION".equals(l[0])).map(l -> l[1]).distinct().count();
-            long totalIdentique = rapportTexte.toString().lines().filter(l -> l.startsWith("[UNCHANGED]")).count();
+            long totalAjout = 0;
+            long totalSupp = 0;
+            long totalModif = 0;
+            for (String[] l : xlsxData) {
+                if ("AJOUT".equals(l[0])) totalAjout++;
+                else if ("DELETION".equals(l[0])) totalSupp++;
+                else if ("MODIFICATION".equals(l[0])) totalModif++;
+            }
+
+            long totalIdentique = 0;
+            BufferedReader reader = new BufferedReader(new StringReader(rapportTexte.toString()));
+            String ligne;
+            while ((ligne = reader.readLine()) != null) {
+                if (ligne.startsWith("[UNCHANGED]")) totalIdentique++;
+            }
 
             afficher("");
             afficher("=== Summary ===");
@@ -98,18 +109,15 @@ public class TxtReportGenerator {
             }
 
             Cell typeCell = row.getCell(0);
-            switch (typeCell.getStringCellValue().toUpperCase()) {
-                case "AJOUT":
-                case "ADD":
+            if (typeCell != null) {
+                String type = typeCell.getStringCellValue().toUpperCase();
+                if ("AJOUT".equals(type) || "ADD".equals(type)) {
                     typeCell.setCellStyle(ajoutStyle);
-                    break;
-                case "SUPPRESSION":
-                case "DELETION":
+                } else if ("SUPPRESSION".equals(type) || "DELETION".equals(type)) {
                     typeCell.setCellStyle(suppStyle);
-                    break;
-                case "MODIFICATION":
+                } else if ("MODIFICATION".equals(type)) {
                     typeCell.setCellStyle(modifStyle);
-                    break;
+                }
             }
         }
 
