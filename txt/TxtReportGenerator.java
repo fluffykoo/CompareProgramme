@@ -7,13 +7,13 @@ import java.io.*;
 import java.nio.file.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.List;
 
 public class TxtReportGenerator {
     private final boolean afficherDansTerminal;
     private String txtFilePath;
     private String xlsxFilePath;
+    private String csvFilePath;
 
     public TxtReportGenerator(boolean afficherDansTerminal) {
         this.afficherDansTerminal = afficherDansTerminal;
@@ -35,9 +35,7 @@ public class TxtReportGenerator {
 
         if (afficherDansTerminal) {
             afficher("\n=== Full Text Report ===");
-            BufferedReader reader = new BufferedReader(new StringReader(rapportTexte.toString()));
-            String ligne;
-            while ((ligne = reader.readLine()) != null) {
+            for (String ligne : rapportTexte.toString().split("\n")) {
                 System.out.println(ligne);
             }
             afficher("");
@@ -46,16 +44,7 @@ public class TxtReportGenerator {
             long totalAjout = xlsxData.stream().filter(l -> "AJOUT".equals(l[0])).count();
             long totalSupp = xlsxData.stream().filter(l -> "DELETION".equals(l[0])).count();
             long totalModif = xlsxData.stream().filter(l -> "MODIFICATION".equals(l[0])).map(l -> l[1]).distinct().count();
-
-            // Remplace rapportTexte.lines() par lecture manuelle ligne par ligne :
-            long totalIdentique = 0;
-            BufferedReader reader = new BufferedReader(new StringReader(rapportTexte.toString()));
-            String ligne;
-            while ((ligne = reader.readLine()) != null) {
-                if (ligne.startsWith("[UNCHANGED]")) {
-                    totalIdentique++;
-                }
-            }
+            long totalIdentique = rapportTexte.toString().lines().filter(l -> l.startsWith("[UNCHANGED]")).count();
 
             afficher("");
             afficher("=== Summary ===");
@@ -66,6 +55,7 @@ public class TxtReportGenerator {
         }
 
         exportToXlsx(dossierRapport, horodatage, xlsxData);
+        exportToCsv(dossierRapport, horodatage, xlsxData);
     }
 
     private void exportToXlsx(String dossierRapport, String horodatage, List<String[]> xlsxData) throws IOException {
@@ -132,11 +122,44 @@ public class TxtReportGenerator {
         afficher("* Excel (.xlsx) report generated : " + cheminFichier);
     }
 
+    private void exportToCsv(String dossierRapport, String horodatage, List<String[]> data) throws IOException {
+        String nomFichier = "rapportTXT_" + horodatage + ".csv";
+        Path chemin = Paths.get(dossierRapport, nomFichier);
+        csvFilePath = chemin.toString();
+
+        try (BufferedWriter writer = Files.newBufferedWriter(chemin)) {
+            writer.write("Type,Key,Changed field,Old value,New value\n");
+            for (String[] ligne : data) {
+                writer.write(String.join(",", escapeCsv(ligne)));
+                writer.newLine();
+            }
+        }
+
+        afficher("* CSV (.csv) report generated : " + csvFilePath);
+    }
+
+    private String[] escapeCsv(String[] champs) {
+        String[] res = new String[champs.length];
+        for (int i = 0; i < champs.length; i++) {
+            String champ = champs[i] != null ? champs[i] : "";
+            if (champ.contains(",") || champ.contains("\"") || champ.contains("\n")) {
+                champ = champ.replace("\"", "\"\"");
+                champ = '"' + champ + '"';
+            }
+            res[i] = champ;
+        }
+        return res;
+    }
+
     public String getTxtFilePath() {
         return txtFilePath;
     }
 
     public String getXlsxFilePath() {
         return xlsxFilePath;
+    }
+
+    public String getCsvFilePath() {
+        return csvFilePath;
     }
 }
